@@ -3,13 +3,15 @@
 import React, { useState } from 'react';
 import ItemManager from '@/components/ItemManager';
 import OrderCreator from '@/components/OrderCreator';
+import OrdersHistory from '@/components/OrdersHistory';
 import { ToastProvider } from '@/components/Toast';
 import {
   Package,
   ShoppingCart,
+  ClipboardList,
 } from 'lucide-react';
 
-type Tab = 'orders' | 'items';
+type Tab = 'orders' | 'history' | 'items';
 
 function AppContent() {
   const [activeTab, setActiveTab] = useState<Tab>('orders');
@@ -36,6 +38,13 @@ function AppContent() {
               إنشاء طلب
             </button>
             <button
+              className={`nav-tab ${activeTab === 'history' ? 'active' : ''}`}
+              onClick={() => setActiveTab('history')}
+            >
+              <ClipboardList size={16} />
+              سجل الطلبيات
+            </button>
+            <button
               className={`nav-tab ${activeTab === 'items' ? 'active' : ''}`}
               onClick={() => setActiveTab('items')}
             >
@@ -48,9 +57,9 @@ function AppContent() {
 
       {/* Main Content */}
       <main style={{ flex: 1 }}>
-        {activeTab === 'orders' ? (
-          <OrderCreator />
-        ) : (
+        {activeTab === 'orders' && <OrderCreator />}
+        {activeTab === 'history' && <OrdersHistory />}
+        {activeTab === 'items' && (
           <div className="app-container" style={{ padding: '1.5rem 1rem' }}>
             <div className="card">
               <ItemManager />

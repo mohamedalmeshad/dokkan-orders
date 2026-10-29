@@ -1,9 +1,10 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { supabase, type Item } from '@/lib/supabase';
+import { supabase, type Item, type Category } from '@/lib/supabase';
 import { UNIT_OPTIONS } from '@/lib/constants';
 import { useToast } from './Toast';
+import CategoryManager from './CategoryManager';
 import {
   Search,
   Plus,
@@ -13,36 +14,55 @@ import {
   X,
   Check,
   Loader2,
+  Layers,
 } from 'lucide-react';
 
 export default function ItemManager() {
   const { showToast } = useToast();
   const [items, setItems] = useState<Item[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [showModal, setShowModal] = useState(false);
+  const [showCategoryManager, setShowCategoryManager] = useState(false);
   const [editingItem, setEditingItem] = useState<Item | null>(null);
   const [formName, setFormName] = useState('');
   const [formUnit, setFormUnit] = useState<string>(UNIT_OPTIONS[0]);
+  const [formCategoryId, setFormCategoryId] = useState<string>('');
   const [isCustomUnit, setIsCustomUnit] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  // Load items
+  // Load items and categories
   useEffect(() => {
     loadItems();
+    loadCategories();
   }, []);
+
+  const loadCategories = async () => {
+    try {
+      const { data } = await supabase.from('categories').select('*').order('name', { ascending: true });
+      setCategories(data || []);
+    } catch {
+      // silent
+    }
+  };
 
   const loadItems = async () => {
     setLoading(true);
     try {
       const { data, error } = await supabase
         .from('items')
-        .select('*')
+        .select('*, categories(name)')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setItems(data || []);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const mapped = (data || []).map((row: any) => ({
+        ...row,
+        category_name: row.categories?.name ?? null,
+      }));
+      setItems(mapped);
     } catch {
       showToast('خطأ في تحميل المنتجات', 'error');
     } finally {
@@ -66,6 +86,7 @@ export default function ItemManager() {
     setEditingItem(null);
     setFormName('');
     setFormUnit(UNIT_OPTIONS[0]);
+    setFormCategoryId('');
     setIsCustomUnit(false);
     setShowModal(true);
   };
@@ -74,6 +95,7 @@ export default function ItemManager() {
     setEditingItem(item);
     setFormName(item.name);
     setFormUnit(item.default_unit);
+    setFormCategoryId(item.category_id || '');
     const isStandard = (UNIT_OPTIONS as readonly string[]).includes(item.default_unit);
     setIsCustomUnit(!isStandard);
     setShowModal(true);
@@ -84,6 +106,7 @@ export default function ItemManager() {
     setEditingItem(null);
     setFormName('');
     setFormUnit(UNIT_OPTIONS[0]);
+    setFormCategoryId('');
     setIsCustomUnit(false);
   };
 
@@ -96,19 +119,20 @@ export default function ItemManager() {
 
     const finalUnit = formUnit.trim() || 'قطعة';
 
+    const categoryId = formCategoryId || null;
     setSaving(true);
     try {
       if (editingItem) {
         const { error } = await supabase
           .from('items')
-          .update({ name: formName.trim(), default_unit: finalUnit })
+          .update({ name: formName.trim(), default_unit: finalUnit, category_id: categoryId })
           .eq('id', editingItem.id);
         if (error) throw error;
         showToast('تم تحديث المنتج بنجاح');
       } else {
         const { error } = await supabase
           .from('items')
-          .insert({ name: formName.trim(), default_unit: finalUnit });
+          .insert({ name: formName.trim(), default_unit: finalUnit, category_id: categoryId });
         if (error) throw error;
         showToast('تم إضافة المنتج بنجاح');
       }
@@ -138,6 +162,14 @@ export default function ItemManager() {
 
   return (
     <div>
+      {/* Category Manager Modal */}
+      {showCategoryManager && (
+        <CategoryManager
+          onClose={() => setShowCategoryManager(false)}
+          onCategoriesChange={() => { loadCategories(); loadItems(); }}
+        />
+      )}
+
       {/* Header */}
       <div className="card-header">
         <div className="card-title">
@@ -147,10 +179,16 @@ export default function ItemManager() {
           إدارة المنتجات
           <span className="badge badge-primary">{items.length}</span>
         </div>
-        <button className="btn btn-primary btn-sm" onClick={openAddModal}>
-          <Plus size={16} />
-          إضافة منتج
-        </button>
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <button className="btn btn-secondary btn-sm" onClick={() => setShowCategoryManager(true)}>
+            <Layers size={15} />
+            الأقسام
+          </button>
+          <button className="btn btn-primary btn-sm" onClick={openAddModal}>
+            <Plus size={16} />
+            إضافة منتج
+          </button>
+        </div>
       </div>
 
       {/* Search */}
@@ -189,7 +227,14 @@ export default function ItemManager() {
         <div className="item-grid">
           {filteredItems.map((item) => (
             <div key={item.id} className="item-row">
-              <span className="item-name">{item.name}</span>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem', flex: 1, minWidth: 0 }}>
+                <span className="item-name">{item.name}</span>
+                {item.category_name && (
+                  <span style={{ fontSize: '0.68rem', color: 'var(--accent-primary)', fontWeight: 500 }}>
+                    🗂️ {item.category_name}
+                  </span>
+                )}
+              </div>
               <span className="item-unit-badge">{item.default_unit}</span>
               <div className="item-actions">
                 <button
@@ -256,6 +301,31 @@ export default function ItemManager() {
               />
             </div>
 
+            {/* Category selector */}
+            <div className="form-group">
+              <label className="form-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span>القسم</span>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  style={{ fontSize: '0.7rem', padding: '0.1rem 0.4rem', color: 'var(--accent-primary)' }}
+                  onClick={() => setShowCategoryManager(true)}
+                >
+                  <Layers size={12} /> إدارة الأقسام
+                </button>
+              </label>
+              <select
+                className="form-select"
+                value={formCategoryId}
+                onChange={(e) => setFormCategoryId(e.target.value)}
+              >
+                <option value="">— بدون قسم —</option>
+                {categories.map((cat) => (
+                  <option key={cat.id} value={cat.id}>{cat.name}</option>
+                ))}
+              </select>
+            </div>
+
             <div className="form-group">
               <label className="form-label">الوحدة الافتراضية</label>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
@@ -303,9 +373,9 @@ export default function ItemManager() {
                     وحدات سريعة:
                   </div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
-                    {['شيكارة', 'كرتونة', 'باكتة', 'علبة', 'كيلو', 'لفة', 'صفيحة', 'قالب', 'كيس', 'قطعة'].map((unit) => (
+                    {UNIT_OPTIONS.map((unit, idx) => (
                       <button
-                        key={unit}
+                        key={`pill-${idx}`}
                         type="button"
                         onClick={() => {
                           setFormUnit(unit);

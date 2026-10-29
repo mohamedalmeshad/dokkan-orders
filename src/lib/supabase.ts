@@ -12,7 +12,18 @@ export type Item = {
   created_at: string;
 };
 
+export type CartItem = {
+  id: string;
+  item_id: string;
+  item_name: string;
+  quantity: number;
+  unit: string;
+  created_at: string;
+  updated_at: string;
+};
+
 export type OrderItem = {
+  id?: string;
   item: Item;
   quantity: number;
   unit: string;

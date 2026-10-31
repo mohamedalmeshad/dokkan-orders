@@ -750,6 +750,10 @@ body {
   border-right: 3px solid var(--accent-danger);
 }
 
+.toast-info {
+  border-right: 3px solid var(--accent-secondary);
+}
+
 /* ================== ANIMATIONS ================== */
 @keyframes fadeIn {
   from { opacity: 0; }
@@ -881,6 +885,66 @@ body {
   .order-card-body {
     grid-template-columns: 1fr !important;
   }
+}
+
+/* ================== MULTI-IMAGE INVOICE GALLERY & LIGHTBOX ================== */
+.invoice-gallery-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(99, 102, 241, 0.4) transparent;
+  -webkit-overflow-scrolling: touch;
+}
+
+.invoice-gallery-scroll::-webkit-scrollbar {
+  height: 5px;
+}
+
+.invoice-gallery-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.invoice-gallery-scroll::-webkit-scrollbar-thumb {
+  background: var(--border-medium);
+  border-radius: var(--radius-full);
+}
+
+.invoice-gallery-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-primary);
+}
+
+.invoice-thumb-card {
+  user-select: none;
+}
+
+.invoice-thumb-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--accent-primary) !important;
+  box-shadow: 0 4px 18px rgba(99, 102, 241, 0.25) !important;
+}
+
+.invoice-thumb-card .thumb-actions-bar {
+  opacity: 1;
+  transition: opacity 0.2s ease;
+}
+
+@media (hover: hover) {
+  .invoice-thumb-card .thumb-actions-bar {
+    opacity: 0;
+  }
+  .invoice-thumb-card:hover .thumb-actions-bar {
+    opacity: 1;
+  }
+}
+
+.lightbox-nav-btn:hover:not(:disabled) {
+  background: var(--accent-primary) !important;
+  border-color: var(--accent-primary-hover) !important;
+  color: #ffffff !important;
+  transform: translateY(-50%) scale(1.08) !important;
+  box-shadow: 0 0 16px rgba(99, 102, 241, 0.5) !important;
+}
+
+.lightbox-nav-btn:active:not(:disabled) {
+  transform: translateY(-50%) scale(0.96) !important;
 }
 
 /* ================== PDF PREVIEW AREA (hidden) ================== */

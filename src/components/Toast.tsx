@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, useCallback } from 'react';
 
-type ToastType = 'success' | 'error';
+export type ToastType = 'success' | 'error' | 'info';
 
 interface Toast {
   id: number;
@@ -41,7 +41,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
       <div className="toast-container">
         {toasts.map((toast) => (
           <div key={toast.id} className={`toast toast-${toast.type}`}>
-            <span>{toast.type === 'success' ? '✓' : '✕'}</span>
+            <span>{toast.type === 'success' ? '✓' : toast.type === 'error' ? '✕' : 'ℹ'}</span>
             {toast.message}
           </div>
         ))}

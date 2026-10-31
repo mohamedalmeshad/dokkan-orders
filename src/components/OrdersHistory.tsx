@@ -1,30 +1,22 @@
 'use client';
 
-import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { supabase, type OrderRecord, type OrderStatus } from '@/lib/supabase';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { supabase, type OrderRecord, type OrderStatus, getOrderInvoiceUrls } from '@/lib/supabase';
 import { formatArabicDate } from '@/lib/constants';
 import { generateDokkanPDF } from '@/lib/pdfGenerator';
 import { useToast } from './Toast';
+import InvoiceGallery from './InvoiceGallery';
 import {
   Search,
-  Filter,
   Calendar,
-  Package,
-  Camera,
-  Upload,
   CheckCircle2,
   Clock,
   XCircle,
-  Eye,
   Trash2,
   FileText,
-  Send,
   Loader2,
   ChevronDown,
   ChevronUp,
-  Download,
-  X,
-  ExternalLink,
   Store,
 } from 'lucide-react';
 
@@ -62,10 +54,6 @@ export default function OrdersHistory() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedOrders, setExpandedOrders] = useState<Record<string, boolean>>({});
-  const [uploadingOrderId, setUploadingOrderId] = useState<string | null>(null);
-  const [previewImage, setPreviewImage] = useState<{ url: string; orderTitle: string } | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [targetOrderIdForUpload, setTargetOrderIdForUpload] = useState<string | null>(null);
   const [downloadingPdfOrderId, setDownloadingPdfOrderId] = useState<string | null>(null);
 
   // Load orders from Supabase
@@ -167,8 +155,9 @@ export default function OrdersHistory() {
 
       // If marked as received and no invoice yet, prompt the user
       const targetOrder = orders.find((o) => o.id === orderId);
-      if (newStatus === 'تم الاستلام' && !targetOrder?.invoice_url) {
-        showToast('📸 يمكنك الآن التقاط صورة فاتورة الاستلام وتثبيتها', 'success');
+      const invoiceCount = targetOrder ? getOrderInvoiceUrls(targetOrder).length : 0;
+      if (newStatus === 'تم الاستلام' && invoiceCount === 0) {
+        showToast('📸 يمكنك الآن التقاط صور فواتير الاستلام وتثبيتها', 'success');
       }
     } catch (err) {
       console.warn('Update status error:', err);
@@ -177,117 +166,16 @@ export default function OrdersHistory() {
     }
   };
 
+  // Update order state when an invoice is added/deleted/replaced
+  const handleUpdateOrder = (updatedOrder: OrderRecord) => {
+    setOrders((prev) =>
+      prev.map((o) => (o.id === updatedOrder.id ? updatedOrder : o))
+    );
+  };
+
   // Toggle order expansion
   const toggleExpand = (orderId: string) => {
     setExpandedOrders((prev) => ({ ...prev, [orderId]: !prev[orderId] }));
-  };
-
-  // Trigger file upload for an order
-  const triggerUpload = (orderId: string) => {
-    setTargetOrderIdForUpload(orderId);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-      fileInputRef.current.click();
-    }
-  };
-
-  // Convert File to Base64 (Reliable fallback if bucket is not created)
-  const fileToBase64 = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = () => resolve(reader.result as string);
-      reader.onerror = (error) => reject(error);
-    });
-  };
-
-  // Handle invoice image file change
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !targetOrderIdForUpload) return;
-
-    setUploadingOrderId(targetOrderIdForUpload);
-    showToast('جاري رفع صورة الفاتورة...');
-
-    try {
-      const fileExt = file.name.split('.').pop() || 'jpg';
-      const fileName = `order-${targetOrderIdForUpload}-${Date.now()}.${fileExt}`;
-      let finalImageUrl: string | null = null;
-
-      // Try Supabase Storage upload
-      try {
-        const { error: uploadError } = await supabase.storage
-          .from('invoices')
-          .upload(fileName, file, {
-            cacheControl: '3600',
-            upsert: true,
-          });
-
-        if (!uploadError) {
-          const { data: publicData } = supabase.storage
-            .from('invoices')
-            .getPublicUrl(fileName);
-          finalImageUrl = publicData?.publicUrl || null;
-        }
-      } catch (storageErr) {
-        console.warn('Storage bucket upload skipped, using base64 fallback:', storageErr);
-      }
-
-      // Fallback: If Storage upload failed or bucket doesn't exist, use high-efficiency Data URL
-      if (!finalImageUrl) {
-        finalImageUrl = await fileToBase64(file);
-      }
-
-      // Update order in database
-      const { error: dbError } = await supabase
-        .from('orders')
-        .update({
-          invoice_url: finalImageUrl,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', targetOrderIdForUpload);
-
-      if (dbError) throw dbError;
-
-      // Local optimistic update
-      setOrders((prev) =>
-        prev.map((o) =>
-          o.id === targetOrderIdForUpload
-            ? { ...o, invoice_url: finalImageUrl }
-            : o
-        )
-      );
-
-      showToast('تم حفظ صورة الفاتورة بنجاح ✓');
-    } catch (err) {
-      console.error('Invoice upload failed:', err);
-      showToast('خطأ في حفظ صورة الفاتورة', 'error');
-    } finally {
-      setUploadingOrderId(null);
-      setTargetOrderIdForUpload(null);
-    }
-  };
-
-  // Delete invoice image
-  const deleteInvoicePhoto = async (orderId: string) => {
-    if (!confirm('هل أنت متأكد من حذف صورة الفاتورة لهذه الطلبية؟')) return;
-
-    try {
-      await supabase
-        .from('orders')
-        .update({
-          invoice_url: null,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', orderId);
-
-      setOrders((prev) =>
-        prev.map((o) => (o.id === orderId ? { ...o, invoice_url: null } : o))
-      );
-      showToast('تم حذف صورة الفاتورة');
-    } catch (err) {
-      showToast('خطأ في حذف الصورة', 'error');
-    }
   };
 
   // Delete order
@@ -336,16 +224,6 @@ export default function OrdersHistory() {
 
   return (
     <div className="app-container" style={{ padding: '1.5rem 1rem' }}>
-      {/* Hidden File Input for Mobile Camera / Upload */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/*"
-        capture="environment"
-        style={{ display: 'none' }}
-        onChange={handleFileChange}
-      />
-
       {/* Page Header */}
       <div className="card-header" style={{ marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.75rem' }}>
         <div className="card-title" style={{ fontSize: '1.25rem' }}>
@@ -458,7 +336,6 @@ export default function OrdersHistory() {
           {filteredOrders.map((order) => {
             const isExpanded = !!expandedOrders[order.id];
             const cfg = STATUS_CONFIG[order.status] || STATUS_CONFIG['تم الإرسال'];
-            const StatusIcon = cfg.icon;
             const itemsList = order.items || [];
             const displayItems = isExpanded ? itemsList : itemsList.slice(0, 3);
             const dateStr = formatArabicDate(new Date(order.created_at));
@@ -466,6 +343,8 @@ export default function OrdersHistory() {
               hour: '2-digit',
               minute: '2-digit',
             });
+            const invoiceUrls = getOrderInvoiceUrls(order);
+            const showInvoiceSection = order.status === 'تم الاستلام' || invoiceUrls.length > 0;
 
             return (
               <div
@@ -602,298 +481,97 @@ export default function OrdersHistory() {
                   </div>
                 </div>
 
-                {/* Main Content Grid: Items List + Invoice Box */}
-                <div
-                  className={`order-card-body ${
-                    order.invoice_url || order.status === 'تم الاستلام' ? '' : 'single-col'
-                  }`}
-                >
-                  {/* Left: Items Summary */}
-                  <div>
-                    <div
-                      style={{
-                        display: 'flex',
-                        flexWrap: 'wrap',
-                        gap: '0.4rem',
-                        marginBottom: '0.75rem',
-                      }}
-                    >
-                      {displayItems.map((item, idx) => (
-                        <div
-                          key={idx}
-                          style={{
-                            background: 'var(--bg-secondary)',
-                            border: '1px solid var(--border-subtle)',
-                            borderRadius: 'var(--radius-md)',
-                            padding: '0.35rem 0.75rem',
-                            fontSize: '0.8rem',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '0.5rem',
-                          }}
-                        >
-                          <span style={{ fontWeight: 800, color: 'var(--accent-primary)' }}>
-                            {item.quantity} ×
-                          </span>
-                          <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>
-                            {item.unit} {item.item_name}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-
-                    {/* Expand/Collapse Button if more than 3 items */}
-                    {itemsList.length > 3 && (
-                      <button
-                        onClick={() => toggleExpand(order.id)}
+                {/* Items Summary */}
+                <div style={{ marginBottom: '0.5rem' }}>
+                  <div
+                    style={{
+                      display: 'flex',
+                      flexWrap: 'wrap',
+                      gap: '0.4rem',
+                      marginBottom: '0.65rem',
+                    }}
+                  >
+                    {displayItems.map((item, idx) => (
+                      <div
+                        key={idx}
                         style={{
-                          background: 'none',
-                          border: 'none',
-                          color: 'var(--text-accent)',
-                          fontSize: '0.78rem',
-                          fontWeight: 600,
-                          cursor: 'pointer',
+                          background: 'var(--bg-secondary)',
+                          border: '1px solid var(--border-subtle)',
+                          borderRadius: 'var(--radius-md)',
+                          padding: '0.35rem 0.75rem',
+                          fontSize: '0.8rem',
                           display: 'inline-flex',
                           alignItems: 'center',
-                          gap: '0.25rem',
-                          padding: '0.2rem 0',
-                          fontFamily: 'var(--font-arabic)',
+                          gap: '0.5rem',
                         }}
                       >
-                        {isExpanded ? (
-                          <>
-                            <ChevronUp size={14} /> إخفاء باقي الأصناف
-                          </>
-                        ) : (
-                          <>
-                            <ChevronDown size={14} /> عرض باقي الأصناف ({itemsList.length - 3} أصناف أخرى...)
-                          </>
-                        )}
-                      </button>
-                    )}
-
-                    {/* Summary Row */}
-                    <div
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '1rem',
-                        marginTop: '0.75rem',
-                        fontSize: '0.78rem',
-                        color: 'var(--text-muted)',
-                      }}
-                    >
-                      <span>📦 الأصناف: <strong style={{ color: 'var(--text-primary)' }}>{order.total_items}</strong></span>
-                      <span>🔢 إجمالي الكميات: <strong style={{ color: 'var(--text-primary)' }}>{order.total_quantity}</strong></span>
-                    </div>
+                        <span style={{ fontWeight: 800, color: 'var(--accent-primary)' }}>
+                          {item.quantity} ×
+                        </span>
+                        <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>
+                          {item.unit} {item.item_name}
+                        </span>
+                      </div>
+                    ))}
                   </div>
 
-                  {/* Right: Invoice Photo Card (Visible ONLY when Delivered 'تم الاستلام' or photo already exists) */}
-                  {(order.status === 'تم الاستلام' || order.invoice_url) && (
-                    <div
+                  {/* Expand/Collapse Button if more than 3 items */}
+                  {itemsList.length > 3 && (
+                    <button
+                      onClick={() => toggleExpand(order.id)}
                       style={{
-                        background: 'var(--bg-secondary)',
-                        border: '1px dashed rgba(52, 211, 153, 0.4)',
-                        borderRadius: 'var(--radius-lg)',
-                        padding: '0.65rem',
-                        display: 'flex',
-                        flexDirection: 'column',
+                        background: 'none',
+                        border: 'none',
+                        color: 'var(--text-accent)',
+                        fontSize: '0.78rem',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        display: 'inline-flex',
                         alignItems: 'center',
-                        justifyContent: 'center',
-                        minHeight: '110px',
-                        position: 'relative',
-                        animation: 'fadeIn 0.25s ease',
+                        gap: '0.25rem',
+                        padding: '0.2rem 0',
+                        fontFamily: 'var(--font-arabic)',
                       }}
                     >
-                      {order.invoice_url ? (
-                        /* Invoice Thumbnail */
-                        <div style={{ position: 'relative', width: '100%', height: '100%', textAlign: 'center' }}>
-                          <div
-                            onClick={() =>
-                              setPreviewImage({
-                                url: order.invoice_url!,
-                                orderTitle: `فاتورة طلب #${order.order_number || ''}`,
-                              })
-                            }
-                            style={{
-                              cursor: 'pointer',
-                              borderRadius: 'var(--radius-md)',
-                              overflow: 'hidden',
-                              maxHeight: '90px',
-                              border: '1px solid var(--border-medium)',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              background: '#000000',
-                            }}
-                          >
-                            <img
-                              src={order.invoice_url}
-                              alt="فاتورة الاستلام"
-                              style={{
-                                width: '100%',
-                                height: '90px',
-                                objectFit: 'cover',
-                                transition: 'transform 0.2s ease',
-                              }}
-                            />
-                          </div>
-
-                          <div
-                            style={{
-                              display: 'flex',
-                              gap: '0.35rem',
-                              marginTop: '0.4rem',
-                              justifyContent: 'center',
-                            }}
-                          >
-                            <button
-                              className="btn btn-ghost btn-sm"
-                              style={{
-                                fontSize: '0.72rem',
-                                padding: '0.2rem 0.5rem',
-                                color: 'var(--accent-secondary)',
-                              }}
-                              onClick={() =>
-                                setPreviewImage({
-                                  url: order.invoice_url!,
-                                  orderTitle: `فاتورة طلب #${order.order_number || ''}`,
-                                })
-                              }
-                            >
-                              <Eye size={12} /> معاينة
-                            </button>
-                            <button
-                              className="btn btn-ghost btn-sm"
-                              style={{
-                                fontSize: '0.72rem',
-                                padding: '0.2rem 0.5rem',
-                                color: 'var(--text-muted)',
-                              }}
-                              onClick={() => triggerUpload(order.id)}
-                              title="تغيير الصورة"
-                            >
-                              <Camera size={12} />
-                            </button>
-                          </div>
-                        </div>
+                      {isExpanded ? (
+                        <>
+                          <ChevronUp size={14} /> إخفاء باقي الأصناف
+                        </>
                       ) : (
-                        /* Upload Button - Enabled specifically upon Delivery */
-                        <div style={{ textAlign: 'center', width: '100%' }}>
-                          <button
-                            className="btn btn-secondary btn-sm"
-                            onClick={() => triggerUpload(order.id)}
-                            disabled={uploadingOrderId === order.id}
-                            style={{
-                              flexDirection: 'column',
-                              gap: '0.35rem',
-                              padding: '0.65rem 0.75rem',
-                              borderStyle: 'dashed',
-                              borderColor: 'rgba(52, 211, 153, 0.5)',
-                              background: 'rgba(52, 211, 153, 0.08)',
-                              width: '100%',
-                              fontSize: '0.75rem',
-                              cursor: 'pointer',
-                            }}
-                          >
-                            {uploadingOrderId === order.id ? (
-                              <Loader2 size={18} className="animate-spin" />
-                            ) : (
-                              <Camera size={20} style={{ color: '#34d399' }} />
-                            )}
-                            <span style={{ fontWeight: 700, color: '#34d399' }}>تصوير الفاتورة</span>
-                          </button>
-                          <span
-                            style={{
-                              fontSize: '0.68rem',
-                              color: 'var(--text-muted)',
-                              display: 'block',
-                              marginTop: '0.25rem',
-                            }}
-                          >
-                            لتوثيق أسعار الاستلام
-                          </span>
-                        </div>
+                        <>
+                          <ChevronDown size={14} /> عرض باقي الأصناف ({itemsList.length - 3} أصناف أخرى...)
+                        </>
                       )}
-                    </div>
+                    </button>
                   )}
+
+                  {/* Summary Totals Row */}
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '1rem',
+                      marginTop: '0.6rem',
+                      fontSize: '0.78rem',
+                      color: 'var(--text-muted)',
+                    }}
+                  >
+                    <span>📦 الأصناف: <strong style={{ color: 'var(--text-primary)' }}>{order.total_items}</strong></span>
+                    <span>🔢 إجمالي الكميات: <strong style={{ color: 'var(--text-primary)' }}>{order.total_quantity}</strong></span>
+                  </div>
                 </div>
+
+                {/* Invoice Gallery (Visible ONLY when Delivered 'تم الاستلام' or has invoices) */}
+                {showInvoiceSection && (
+                  <InvoiceGallery
+                    order={order}
+                    onUpdateOrder={handleUpdateOrder}
+                    showToast={showToast}
+                  />
+                )}
               </div>
             );
           })}
-        </div>
-      )}
-
-      {/* Lightbox / Modal for Fullscreen Invoice Photo Preview */}
-      {previewImage && (
-        <div className="modal-overlay" onClick={() => setPreviewImage(null)}>
-          <div
-            className="modal-content"
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              maxWidth: '850px',
-              width: '95%',
-              padding: '1.25rem',
-              display: 'flex',
-              flexDirection: 'column',
-              maxHeight: '92vh',
-            }}
-          >
-            <div className="modal-title" style={{ justifyContent: 'space-between' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <Camera size={20} style={{ color: 'var(--accent-primary)' }} />
-                <span>{previewImage.orderTitle}</span>
-              </div>
-              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                <a
-                  href={previewImage.url}
-                  download="invoice-photo.jpg"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="btn btn-secondary btn-sm"
-                  style={{ fontSize: '0.75rem' }}
-                >
-                  <Download size={14} /> تنزيل
-                </a>
-                <button
-                  className="btn btn-ghost btn-icon"
-                  onClick={() => setPreviewImage(null)}
-                >
-                  <X size={20} />
-                </button>
-              </div>
-            </div>
-
-            {/* High-res Image Container */}
-            <div
-              style={{
-                flex: 1,
-                overflow: 'auto',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                background: '#090b10',
-                borderRadius: 'var(--radius-md)',
-                padding: '0.5rem',
-                minHeight: '350px',
-              }}
-            >
-              <img
-                src={previewImage.url}
-                alt="معاينة الفاتورة الكاملة"
-                style={{
-                  maxWidth: '100%',
-                  maxHeight: '70vh',
-                  objectFit: 'contain',
-                  borderRadius: 'var(--radius-sm)',
-                }}
-              />
-            </div>
-
-            <div style={{ textAlign: 'center', marginTop: '0.75rem', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-              اضغط خارج النافذة أو زر الإغلاق للعودة
-            </div>
-          </div>
         </div>
       )}
     </div>

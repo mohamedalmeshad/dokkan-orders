@@ -52,8 +52,25 @@ export type OrderRecord = {
   }[];
   total_items: number;
   total_quantity: number;
-  invoice_url: string | null;
+  invoice_url?: string | null;
+  invoice_urls?: string[] | null;
   created_at: string;
   updated_at: string;
 };
+
+/**
+ * Returns an array of invoice photo URLs for an order, supporting both
+ * the new invoice_urls array and the legacy invoice_url string gracefully.
+ */
+export const getOrderInvoiceUrls = (order?: Partial<OrderRecord> | null): string[] => {
+  if (!order) return [];
+  if (Array.isArray(order.invoice_urls) && order.invoice_urls.length > 0) {
+    return order.invoice_urls.filter((url): url is string => typeof url === 'string' && url.trim().length > 0);
+  }
+  if (order.invoice_url && typeof order.invoice_url === 'string' && order.invoice_url.trim().length > 0) {
+    return [order.invoice_url];
+  }
+  return [];
+};
+
 

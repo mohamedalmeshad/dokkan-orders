@@ -76,6 +76,7 @@ CREATE TABLE IF NOT EXISTS orders (
   total_items INTEGER DEFAULT 0 NOT NULL,
   total_quantity INTEGER DEFAULT 0 NOT NULL,
   invoice_url TEXT,
+  invoice_urls TEXT[] DEFAULT '{}'::text[],
   created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
   updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
@@ -106,10 +107,14 @@ CREATE INDEX IF NOT EXISTS idx_orders_status ON orders (status);
 CREATE INDEX IF NOT EXISTS idx_orders_created_at ON orders (created_at DESC);
 
 -- ============================================
--- Supabase Storage: 'invoices' Bucket Setup
+-- Supabase Storage: 'invoice-photos' & 'invoices' Buckets Setup
 -- ============================================
 
--- Create 'invoices' bucket if it doesn't exist
+-- Create 'invoice-photos' and 'invoices' buckets if they don't exist
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('invoice-photos', 'invoice-photos', true)
+ON CONFLICT (id) DO NOTHING;
+
 INSERT INTO storage.buckets (id, name, public)
 VALUES ('invoices', 'invoices', true)
 ON CONFLICT (id) DO NOTHING;
@@ -117,6 +122,36 @@ ON CONFLICT (id) DO NOTHING;
 -- Storage policies to allow public reads and uploads for invoice photos safely
 DO $$
 BEGIN
+  -- Policies for invoice-photos
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE policyname = 'Public Access to Invoice Photos' AND tablename = 'objects'
+  ) THEN
+    CREATE POLICY "Public Access to Invoice Photos" ON storage.objects
+      FOR SELECT USING (bucket_id = 'invoice-photos');
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE policyname = 'Allow Uploads to Invoice Photos' AND tablename = 'objects'
+  ) THEN
+    CREATE POLICY "Allow Uploads to Invoice Photos" ON storage.objects
+      FOR INSERT WITH CHECK (bucket_id = 'invoice-photos');
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE policyname = 'Allow Updates to Invoice Photos' AND tablename = 'objects'
+  ) THEN
+    CREATE POLICY "Allow Updates to Invoice Photos" ON storage.objects
+      FOR UPDATE USING (bucket_id = 'invoice-photos');
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE policyname = 'Allow Deletes from Invoice Photos' AND tablename = 'objects'
+  ) THEN
+    CREATE POLICY "Allow Deletes from Invoice Photos" ON storage.objects
+      FOR DELETE USING (bucket_id = 'invoice-photos');
+  END IF;
+
+  -- Policies for legacy invoices
   IF NOT EXISTS (
     SELECT 1 FROM pg_policies WHERE policyname = 'Public Access to Invoices' AND tablename = 'objects'
   ) THEN

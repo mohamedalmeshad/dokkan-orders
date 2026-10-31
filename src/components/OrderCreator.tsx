@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { supabase, type Item, type OrderItem, type CartItem, type Category } from '@/lib/supabase';
@@ -159,6 +159,7 @@ export default function OrderCreator() {
         total_items: orderItems.length,
         total_quantity: orderItems.reduce((acc, curr) => acc + curr.quantity, 0),
         invoice_url: null,
+        invoice_urls: [],
       }).select().single();
       if (error) { showToast('خطأ في حفظ الطلبية في السجل', 'error'); return false; }
       if (autoClearCart) await clearOrder(false);

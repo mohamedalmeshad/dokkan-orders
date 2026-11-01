@@ -18,9 +18,15 @@ import {
   BookmarkCheck,
   ChevronUp,
   ChevronDown,
+  Send,
+  ArrowRight,
 } from 'lucide-react';
 
-export default function OrderCreator() {
+interface OrderCreatorProps {
+  onNavigateToCart?: () => void;
+}
+
+export default function OrderCreator({ onNavigateToCart }: OrderCreatorProps = {}) {
   const { showToast } = useToast();
   const [items, setItems] = useState<Item[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -46,11 +52,20 @@ export default function OrderCreator() {
       if (data) {
         const mapped: OrderItem[] = data.map((row: CartItem) => {
           const matchedItem = currentItems.find((i) => i.id === row.item_id);
+          const cost = matchedItem?.cost_price ?? row.cost_price ?? null;
           return {
             id: row.id,
-            item: matchedItem || { id: row.item_id, name: row.item_name, default_unit: row.unit, category_id: null, created_at: row.created_at || '' },
+            item: matchedItem || {
+              id: row.item_id,
+              name: row.item_name,
+              default_unit: row.unit,
+              category_id: null,
+              cost_price: cost,
+              created_at: row.created_at || '',
+            },
             quantity: Number(row.quantity),
             unit: row.unit,
+            cost_price: cost,
           };
         });
         setOrderItems(mapped);
@@ -112,13 +127,19 @@ export default function OrderCreator() {
     const newQty = existing ? existing.quantity + 1 : 1;
     setOrderItems((prev) => {
       if (existing) return prev.map((oi) => oi.item.id === item.id ? { ...oi, quantity: newQty } : oi);
-      return [...prev, { item, quantity: 1, unit: item.default_unit }];
+      return [...prev, { item, quantity: 1, unit: item.default_unit, cost_price: item.cost_price ?? null }];
     });
     try {
       if (existing) {
         await supabase.from('active_cart_items').update({ quantity: newQty, updated_at: new Date().toISOString() }).eq('item_id', item.id);
       } else {
-        await supabase.from('active_cart_items').insert({ item_id: item.id, item_name: item.name, quantity: 1, unit: item.default_unit });
+        await supabase.from('active_cart_items').insert({
+          item_id: item.id,
+          item_name: item.name,
+          quantity: 1,
+          unit: item.default_unit,
+          cost_price: item.cost_price ?? null,
+        });
       }
     } catch (err) { console.warn('Realtime sync insert failed:', err); }
   };
@@ -151,7 +172,13 @@ export default function OrderCreator() {
     if (orderItems.length === 0) { showToast('أضف منتجات للطلب أولاً', 'error'); return false; }
     setSavingOrder(true);
     try {
-      const itemsPayload = orderItems.map((oi) => ({ item_id: oi.item.id, item_name: oi.item.name, quantity: oi.quantity, unit: oi.unit }));
+      const itemsPayload = orderItems.map((oi) => ({
+        item_id: oi.item.id,
+        item_name: oi.item.name,
+        quantity: oi.quantity,
+        unit: oi.unit,
+        cost_price: oi.cost_price ?? oi.item.cost_price ?? null,
+      }));
       const { data, error } = await supabase.from('orders').insert({
         merchant_name: merchantName.trim() || 'محمد حمادة',
         status: 'تم الإرسال',
@@ -199,7 +226,18 @@ export default function OrderCreator() {
     }
   };
 
-  const totalQty = orderItems.reduce((s, oi) => s + oi.quantity, 0);
+  const { totalQty, totalEstimatedCost } = useMemo(() => {
+    let q = 0;
+    let c = 0;
+    for (const oi of orderItems) {
+      q += oi.quantity;
+      const price = oi.cost_price ?? oi.item.cost_price;
+      if (price != null && !isNaN(Number(price))) {
+        c += oi.quantity * Number(price);
+      }
+    }
+    return { totalQty: q, totalEstimatedCost: c };
+  }, [orderItems]);
 
   return (
     <div style={{ position: 'relative', minHeight: '100vh' }}>
@@ -342,7 +380,7 @@ export default function OrderCreator() {
                       }}>
                         {item.name}
                       </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', flexWrap: 'wrap' }}>
                         <span style={{
                           fontSize: '0.65rem',
                           background: 'var(--bg-input)',
@@ -356,6 +394,21 @@ export default function OrderCreator() {
                         {item.category_name && (
                           <span style={{ fontSize: '0.62rem', color: 'var(--accent-primary)', fontWeight: 600 }}>
                             {item.category_name}
+                          </span>
+                        )}
+                        {item.cost_price != null && (
+                          <span
+                            style={{
+                              fontSize: '0.62rem',
+                              color: '#34d399',
+                              background: 'rgba(52, 211, 153, 0.1)',
+                              padding: '0.1rem 0.4rem',
+                              borderRadius: 'var(--radius-full)',
+                              fontWeight: 700,
+                            }}
+                            title="سعر الشراء الداخلي للمتجر"
+                          >
+                            💰 {item.cost_price} ج.م
                           </span>
                         )}
                       </div>
@@ -427,7 +480,7 @@ export default function OrderCreator() {
             fontFamily: 'var(--font-arabic)',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
             <ShoppingCart size={20} style={{ color: 'var(--accent-primary)' }} />
             <span style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.9rem' }}>
               السلة المشتركة
@@ -444,9 +497,46 @@ export default function OrderCreator() {
                 {orderItems.length} صنف • {totalQty} قطعة
               </span>
             )}
+            {totalEstimatedCost > 0 && (
+              <span style={{
+                background: 'rgba(52, 211, 153, 0.15)',
+                color: '#34d399',
+                borderRadius: 'var(--radius-full)',
+                padding: '0.15rem 0.55rem',
+                fontSize: '0.72rem',
+                fontWeight: 800,
+              }}
+              title="إجمالي التكلفة التقديرية (خاص بالمتجر فقط 🔒)"
+              >
+                💰 {totalEstimatedCost.toLocaleString('ar-EG')} ج.م
+              </span>
+            )}
             <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10b981', display: 'inline-block', boxShadow: '0 0 8px rgba(16,185,129,0.6)' }} />
           </div>
-          {cartOpen ? <ChevronDown size={18} style={{ color: 'var(--text-muted)' }} /> : <ChevronUp size={18} style={{ color: 'var(--text-muted)' }} />}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            {onNavigateToCart && orderItems.length > 0 && (
+              <span
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onNavigateToCart();
+                }}
+                style={{
+                  fontSize: '0.75rem',
+                  color: 'var(--accent-secondary)',
+                  fontWeight: 700,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.25rem',
+                  padding: '0.2rem 0.6rem',
+                  borderRadius: 'var(--radius-sm)',
+                  background: 'rgba(34, 211, 238, 0.1)',
+                }}
+              >
+                فتح صفحة السلة 🛒
+              </span>
+            )}
+            {cartOpen ? <ChevronDown size={18} style={{ color: 'var(--text-muted)' }} /> : <ChevronUp size={18} style={{ color: 'var(--text-muted)' }} />}
+          </div>
         </button>
 
         {/* Cart body – expanded */}
@@ -501,6 +591,23 @@ export default function OrderCreator() {
 
                 {/* Action buttons */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
+                  {onNavigateToCart && (
+                    <button
+                      className="btn btn-primary btn-block btn-lg"
+                      onClick={onNavigateToCart}
+                      style={{
+                        background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '0.5rem',
+                        fontWeight: 800,
+                      }}
+                    >
+                      <ShoppingCart size={18} />
+                      الانتقال لصفحة السلة وتوليد الطلب
+                    </button>
+                  )}
                   <button
                     className="btn btn-primary btn-block btn-lg"
                     onClick={() => saveOrderToHistory(true)}

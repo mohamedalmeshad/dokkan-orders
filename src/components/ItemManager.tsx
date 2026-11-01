@@ -29,6 +29,7 @@ export default function ItemManager() {
   const [formName, setFormName] = useState('');
   const [formUnit, setFormUnit] = useState<string>(UNIT_OPTIONS[0]);
   const [formCategoryId, setFormCategoryId] = useState<string>('');
+  const [formCostPrice, setFormCostPrice] = useState<string>('');
   const [isCustomUnit, setIsCustomUnit] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -87,6 +88,7 @@ export default function ItemManager() {
     setFormName('');
     setFormUnit(UNIT_OPTIONS[0]);
     setFormCategoryId('');
+    setFormCostPrice('');
     setIsCustomUnit(false);
     setShowModal(true);
   };
@@ -96,6 +98,7 @@ export default function ItemManager() {
     setFormName(item.name);
     setFormUnit(item.default_unit);
     setFormCategoryId(item.category_id || '');
+    setFormCostPrice(item.cost_price != null ? String(item.cost_price) : '');
     const isStandard = (UNIT_OPTIONS as readonly string[]).includes(item.default_unit);
     setIsCustomUnit(!isStandard);
     setShowModal(true);
@@ -107,6 +110,7 @@ export default function ItemManager() {
     setFormName('');
     setFormUnit(UNIT_OPTIONS[0]);
     setFormCategoryId('');
+    setFormCostPrice('');
     setIsCustomUnit(false);
   };
 
@@ -118,21 +122,32 @@ export default function ItemManager() {
     }
 
     const finalUnit = formUnit.trim() || 'قطعة';
-
     const categoryId = formCategoryId || null;
+    const parsedCostPrice = formCostPrice.trim() !== '' ? parseFloat(formCostPrice.trim()) : null;
+
     setSaving(true);
     try {
       if (editingItem) {
         const { error } = await supabase
           .from('items')
-          .update({ name: formName.trim(), default_unit: finalUnit, category_id: categoryId })
+          .update({
+            name: formName.trim(),
+            default_unit: finalUnit,
+            category_id: categoryId,
+            cost_price: parsedCostPrice,
+          })
           .eq('id', editingItem.id);
         if (error) throw error;
         showToast('تم تحديث المنتج بنجاح');
       } else {
         const { error } = await supabase
           .from('items')
-          .insert({ name: formName.trim(), default_unit: finalUnit, category_id: categoryId });
+          .insert({
+            name: formName.trim(),
+            default_unit: finalUnit,
+            category_id: categoryId,
+            cost_price: parsedCostPrice,
+          });
         if (error) throw error;
         showToast('تم إضافة المنتج بنجاح');
       }
@@ -227,13 +242,33 @@ export default function ItemManager() {
         <div className="item-grid">
           {filteredItems.map((item) => (
             <div key={item.id} className="item-row">
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem', flex: 1, minWidth: 0 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', flex: 1, minWidth: 0 }}>
                 <span className="item-name">{item.name}</span>
-                {item.category_name && (
-                  <span style={{ fontSize: '0.68rem', color: 'var(--accent-primary)', fontWeight: 500 }}>
-                    🗂️ {item.category_name}
-                  </span>
-                )}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                  {item.category_name && (
+                    <span style={{ fontSize: '0.68rem', color: 'var(--accent-primary)', fontWeight: 500 }}>
+                      🗂️ {item.category_name}
+                    </span>
+                  )}
+                  {item.cost_price != null && (
+                    <span
+                      style={{
+                        fontSize: '0.68rem',
+                        background: 'rgba(52, 211, 153, 0.12)',
+                        color: '#34d399',
+                        padding: '0.1rem 0.45rem',
+                        borderRadius: 'var(--radius-full)',
+                        fontWeight: 700,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.2rem',
+                      }}
+                      title="سعر الشراء للمتجر (خاص بك فقط)"
+                    >
+                      💰 {item.cost_price} ج.م
+                    </span>
+                  )}
+                </div>
               </div>
               <span className="item-unit-badge">{item.default_unit}</span>
               <div className="item-actions">
@@ -324,6 +359,29 @@ export default function ItemManager() {
                   <option key={cat.id} value={cat.id}>{cat.name}</option>
                 ))}
               </select>
+            </div>
+
+            {/* Cost price input */}
+            <div className="form-group">
+              <label className="form-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span>سعر الشراء / التكلفة للوحدة (اختياري - خاص بالمتجر 🔒)</span>
+                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>لن يظهر في ملف PDF للمورد</span>
+              </label>
+              <div style={{ position: 'relative' }}>
+                <input
+                  className="form-input"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder="0.00 (مثال: 45.5)"
+                  value={formCostPrice}
+                  onChange={(e) => setFormCostPrice(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSave()}
+                />
+                <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 600 }}>
+                  ج.م
+                </span>
+              </div>
             </div>
 
             <div className="form-group">

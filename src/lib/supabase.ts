@@ -17,6 +17,7 @@ export type Item = {
   default_unit: string;
   category_id: string | null;
   category_name?: string | null;
+  cost_price?: number | null;
   created_at: string;
 };
 
@@ -26,6 +27,7 @@ export type CartItem = {
   item_name: string;
   quantity: number;
   unit: string;
+  cost_price?: number | null;
   created_at: string;
   updated_at: string;
 };
@@ -35,6 +37,7 @@ export type OrderItem = {
   item: Item;
   quantity: number;
   unit: string;
+  cost_price?: number | null;
 };
 
 export type OrderStatus = 'تم الإرسال' | 'تم الاستلام' | 'ملغاة';
@@ -49,6 +52,7 @@ export type OrderRecord = {
     item_name: string;
     quantity: number;
     unit: string;
+    cost_price?: number | null;
   }[];
   total_items: number;
   total_quantity: number;

@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS items (
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   name TEXT NOT NULL,
   default_unit TEXT NOT NULL DEFAULT 'كرتونة',
+  cost_price NUMERIC,
   created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
 
@@ -38,6 +39,7 @@ CREATE TABLE IF NOT EXISTS active_cart_items (
   item_name TEXT NOT NULL,
   quantity INTEGER DEFAULT 1 NOT NULL,
   unit TEXT NOT NULL DEFAULT 'كرتونة',
+  cost_price NUMERIC,
   created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
   updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );

@@ -1,20 +1,57 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import ItemManager from '@/components/ItemManager';
 import OrderCreator from '@/components/OrderCreator';
 import OrdersHistory from '@/components/OrdersHistory';
+import CartManager from '@/components/CartManager';
 import { ToastProvider } from '@/components/Toast';
+import { supabase } from '@/lib/supabase';
 import {
   Package,
   ShoppingCart,
   ClipboardList,
+  Store,
 } from 'lucide-react';
 
-type Tab = 'orders' | 'history' | 'items';
+type Tab = 'orders' | 'cart' | 'history' | 'items';
 
 function AppContent() {
   const [activeTab, setActiveTab] = useState<Tab>('orders');
+  const [cartCount, setCartCount] = useState<number>(0);
+
+  // Sync cart count for top navigation badge
+  useEffect(() => {
+    const fetchCartCount = async () => {
+      try {
+        const { count, error } = await supabase
+          .from('active_cart_items')
+          .select('*', { count: 'exact', head: true });
+        if (!error && count !== null) {
+          setCartCount(count);
+        }
+      } catch {
+        // silent
+      }
+    };
+
+    fetchCartCount();
+
+    const channel = supabase
+      .channel('app_cart_badge_sync')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'active_cart_items' },
+        () => {
+          fetchCartCount();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
 
   return (
     <>
@@ -34,8 +71,32 @@ function AppContent() {
               className={`nav-tab ${activeTab === 'orders' ? 'active' : ''}`}
               onClick={() => setActiveTab('orders')}
             >
+              <Store size={16} />
+              كتالوج الطلب
+            </button>
+            <button
+              className={`nav-tab ${activeTab === 'cart' ? 'active' : ''}`}
+              onClick={() => setActiveTab('cart')}
+              style={{ position: 'relative' }}
+            >
               <ShoppingCart size={16} />
-              إنشاء طلب
+              السلة
+              {cartCount > 0 && (
+                <span
+                  style={{
+                    background: activeTab === 'cart' ? '#ffffff' : 'var(--accent-primary)',
+                    color: activeTab === 'cart' ? 'var(--accent-primary)' : '#ffffff',
+                    fontSize: '0.68rem',
+                    fontWeight: 800,
+                    padding: '0.1rem 0.45rem',
+                    borderRadius: 'var(--radius-full)',
+                    marginRight: '0.2rem',
+                    boxShadow: '0 1px 4px rgba(0,0,0,0.3)',
+                  }}
+                >
+                  {cartCount}
+                </span>
+              )}
             </button>
             <button
               className={`nav-tab ${activeTab === 'history' ? 'active' : ''}`}
@@ -57,7 +118,12 @@ function AppContent() {
 
       {/* Main Content */}
       <main style={{ flex: 1 }}>
-        {activeTab === 'orders' && <OrderCreator />}
+        {activeTab === 'orders' && (
+          <OrderCreator onNavigateToCart={() => setActiveTab('cart')} />
+        )}
+        {activeTab === 'cart' && (
+          <CartManager onNavigateToOrders={() => setActiveTab('orders')} />
+        )}
         {activeTab === 'history' && <OrdersHistory />}
         {activeTab === 'items' && (
           <div className="app-container" style={{ padding: '1.5rem 1rem' }}>

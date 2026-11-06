@@ -106,11 +106,14 @@ export async function generateDokkanPDF(params: {
   const margin  = 12;          // left & right margin
   const cw      = pageW - margin * 2; // usable content width ≈ 186 mm
 
-  // Column layout — only 2 columns: [Quantity pill] | [Item name & unit]
-  //  x positions (absolute from left edge):
-  const colQtyLabelX  = margin + 22;   // center of qty column header
-  const colName       = margin + cw - 6; // item text right-edge (right-aligned)
-  const colNameLabelX = margin + cw - 6; // right edge of name column header
+  // Column layout in RTL reading order (RIGHT → LEFT):
+  // 1. Right Column: [الكمية] (Quantity appears FIRST)
+  // 2. Left Column:  [الوحدة واسم الصنف] (Unit and Item Name appear SECOND)
+  // Format: [الكمية] [الوحدة] [اسم المنتج]
+  const colQtyWidth   = 32;                               // mm width for quantity column on the right
+  const colQtyCenter  = margin + cw - colQtyWidth / 2;    // center of qty column header & pill (~182 mm)
+  const colNameRight  = margin + cw - colQtyWidth - 4;    // right edge for unit & item name (~162 mm)
+  const colNameMaxW   = cw - colQtyWidth - 8;             // available width for text
 
   // ---- Date / store --------------------------------------------------------
   const dateObj   = createdAt ? new Date(createdAt) : new Date();
@@ -185,17 +188,17 @@ export async function generateDokkanPDF(params: {
     doc.setFont('Amiri', 'bold');
     doc.setFontSize(11);
 
-    // Quantity header — centered in qty column
+    // 1. Right column: Quantity (الكمية) - appears FIRST in RTL
     doc.text(
-      shapeArabic(doc, 'الكمية المطلوبة'),
-      colQtyLabelX, y + 6.7,
+      shapeArabic(doc, 'الكمية'),
+      colQtyCenter, y + 6.7,
       { align: 'center' }
     );
 
-    // Item name header — right-aligned
+    // 2. Left column: Unit & Item Name (الوحدة واسم الصنف) - appears SECOND in RTL
     doc.text(
-      shapeArabic(doc, 'اسم الصنف والوحدة'),
-      colNameLabelX, y + 6.7,
+      shapeArabic(doc, 'الوحدة واسم الصنف'),
+      colNameRight, y + 6.7,
       { align: 'right' }
     );
 
@@ -235,9 +238,9 @@ export async function generateDokkanPDF(params: {
     doc.setLineWidth(0.18);
     doc.line(margin, y + rowH, margin + cw, y + rowH);
 
-    // ── 1. Quantity pill ────────────────────────────────────────────────────
-    const pillX = margin + 8;
-    const pillW = 28;
+    // ── 1. Quantity pill (on the RIGHT column - read first in RTL) ───────────
+    const pillW = 24;
+    const pillX = colQtyCenter - pillW / 2;
     doc.setFillColor(238, 242, 255);
     doc.setDrawColor(199, 210, 254);
     doc.setLineWidth(0.3);
@@ -246,9 +249,9 @@ export async function generateDokkanPDF(params: {
     doc.setFont('Amiri', 'bold');
     doc.setTextColor(67, 56, 202);
     doc.setFontSize(11);
-    doc.text(String(item.quantity), pillX + pillW / 2, y + 7.2, { align: 'center' });
+    doc.text(String(item.quantity), colQtyCenter, y + 7.2, { align: 'center' });
 
-    // ── 2. Item name & unit ─────────────────────────────────────────────────
+    // ── 2. Unit and Item name (on the LEFT column - read second in RTL) ──────
     doc.setFont('Amiri', 'bold');
     doc.setTextColor(15, 23, 42);
     doc.setFontSize(11.5);
@@ -256,12 +259,10 @@ export async function generateDokkanPDF(params: {
     const unitPart  = item.unit?.trim() ? `${item.unit.trim()} ` : '';
     const fullLabel = `${unitPart}${item.item_name}`;
 
-    // maxWidth prevents text from overlapping qty pill
-    const nameMaxW = cw - 46;
     doc.text(
       shapeArabic(doc, fullLabel),
-      colName, y + 7.5,
-      { align: 'right', maxWidth: nameMaxW }
+      colNameRight, y + 7.5,
+      { align: 'right', maxWidth: colNameMaxW }
     );
 
     y += rowH;
@@ -287,7 +288,7 @@ export async function generateDokkanPDF(params: {
   doc.setFontSize(10.5);
   doc.setTextColor(71, 85, 105);
   doc.text(
-    shapeArabic(doc, `إجمالي الأصناف: ${items.length} صنف    •    إجمالي الكميات: ${totalQty} وحدة`),
+    shapeArabic(doc, `إجمالي الكميات: ${totalQty} وحدة    •    إجمالي الأصناف: ${items.length} صنف`),
     margin + cw, y,
     { align: 'right', maxWidth: cw }
   );

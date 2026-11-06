@@ -498,18 +498,29 @@ export default function OrdersHistory() {
                           background: 'var(--bg-secondary)',
                           border: '1px solid var(--border-subtle)',
                           borderRadius: 'var(--radius-md)',
-                          padding: '0.35rem 0.75rem',
+                          padding: '0.35rem 0.7rem',
                           fontSize: '0.8rem',
                           display: 'inline-flex',
                           alignItems: 'center',
-                          gap: '0.5rem',
+                          gap: '0.4rem',
                         }}
                       >
-                        <span style={{ fontWeight: 800, color: 'var(--accent-primary)' }}>
-                          {item.quantity} ×
+                        {(item as any).image_url && (
+                          <img
+                            src={(item as any).image_url}
+                            alt={item.item_name}
+                            style={{ width: '22px', height: '22px', borderRadius: '4px', objectFit: 'cover' }}
+                          />
+                        )}
+                        {/* Format: [الكمية] [الوحدة] [اسم المنتج] */}
+                        <span style={{ fontWeight: 900, color: 'var(--accent-primary)', fontSize: '0.88rem' }}>
+                          {item.quantity}
                         </span>
-                        <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>
-                          {item.unit} {item.item_name}
+                        <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>
+                          {item.unit}
+                        </span>
+                        <span style={{ color: 'var(--text-primary)', fontWeight: 700 }}>
+                          {item.item_name}
                         </span>
                       </div>
                     ))}

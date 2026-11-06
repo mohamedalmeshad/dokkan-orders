@@ -18,6 +18,7 @@ export type Item = {
   category_id: string | null;
   category_name?: string | null;
   cost_price?: number | null;
+  image_url?: string | null;
   created_at: string;
 };
 
@@ -28,6 +29,7 @@ export type CartItem = {
   quantity: number;
   unit: string;
   cost_price?: number | null;
+  image_url?: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -53,6 +55,7 @@ export type OrderRecord = {
     quantity: number;
     unit: string;
     cost_price?: number | null;
+    image_url?: string | null;
   }[];
   total_items: number;
   total_quantity: number;

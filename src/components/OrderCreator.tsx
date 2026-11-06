@@ -369,6 +369,51 @@ export default function OrderCreator({ onNavigateToCart }: OrderCreatorProps = {
                     }}
                     onClick={() => !oi && addToOrder(item)}
                   >
+                    {/* Product Image Thumbnail */}
+                    <div
+                      style={{
+                        width: '100%',
+                        height: '92px',
+                        borderRadius: 'var(--radius-md)',
+                        overflow: 'hidden',
+                        background: 'var(--bg-input)',
+                        border: '1px solid var(--border-subtle)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        position: 'relative',
+                      }}
+                    >
+                      {item.image_url ? (
+                        <img
+                          src={item.image_url}
+                          alt={item.name}
+                          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                          loading="lazy"
+                        />
+                      ) : (
+                        <Package size={30} style={{ color: 'var(--text-muted)', opacity: 0.5 }} />
+                      )}
+                      {oi && (
+                        <div
+                          style={{
+                            position: 'absolute',
+                            top: '6px',
+                            right: '6px',
+                            background: 'var(--accent-primary)',
+                            color: '#fff',
+                            fontSize: '0.72rem',
+                            fontWeight: 800,
+                            padding: '0.15rem 0.5rem',
+                            borderRadius: 'var(--radius-full)',
+                            boxShadow: 'var(--shadow-sm)',
+                          }}
+                        >
+                          {oi.quantity} {oi.unit}
+                        </div>
+                      )}
+                    </div>
+
                     {/* Item name & category */}
                     <div>
                       <div style={{
@@ -553,7 +598,8 @@ export default function OrderCreator({ onNavigateToCart }: OrderCreatorProps = {
                 {/* Items list */}
                 <div style={{ overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: '0.35rem', maxHeight: '180px' }}>
                   {orderItems.map((oi) => (
-                    <div key={oi.item.id} className="order-item-row">
+                    <div key={oi.item.id} className="order-item-row" style={{ gap: '0.6rem' }}>
+                      {/* Quantity Stepper */}
                       <div className="order-item-qty">
                         <button className="btn btn-ghost btn-icon" style={{ width: '28px', height: '28px', color: 'var(--accent-danger)' }} onClick={() => updateQuantity(oi.item.id, oi.quantity - 1)}>
                           <Minus size={13} />
@@ -569,7 +615,46 @@ export default function OrderCreator({ onNavigateToCart }: OrderCreatorProps = {
                           <Plus size={13} />
                         </button>
                       </div>
-                      <span className="order-item-name">{oi.item.name}</span>
+
+                      {/* Product Thumbnail */}
+                      <div
+                        style={{
+                          width: '32px',
+                          height: '32px',
+                          borderRadius: 'var(--radius-sm)',
+                          overflow: 'hidden',
+                          flexShrink: 0,
+                          background: 'var(--bg-input)',
+                          border: '1px solid var(--border-subtle)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
+                        {oi.item.image_url ? (
+                          <img
+                            src={oi.item.image_url}
+                            alt={oi.item.name}
+                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                          />
+                        ) : (
+                          <Package size={16} style={{ color: 'var(--text-muted)', opacity: 0.7 }} />
+                        )}
+                      </div>
+
+                      {/* Format: [الكمية] [الوحدة] [اسم المنتج] */}
+                      <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.35rem', flex: 1, minWidth: 0 }}>
+                        <span style={{ fontWeight: 900, color: 'var(--accent-primary)', fontSize: '0.88rem' }}>
+                          {oi.quantity}
+                        </span>
+                        <span style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                          {oi.unit}
+                        </span>
+                        <span className="order-item-name" style={{ margin: 0, flex: 1 }}>
+                          {oi.item.name}
+                        </span>
+                      </div>
+
                       <select
                         className="order-unit-select"
                         value={oi.unit}

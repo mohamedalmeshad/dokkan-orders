@@ -20,6 +20,7 @@ import {
   Layers,
   Phone,
   CheckCircle2,
+  Package,
 } from 'lucide-react';
 
 interface CartManagerProps {
@@ -293,8 +294,9 @@ export default function CartManager({ onNavigateToOrders }: CartManagerProps) {
       message += `*الأصناف والكميات المطلوبة:*\n`;
 
       orderItems.forEach((oi, idx) => {
-        const unitStr = oi.unit ? `[ ${oi.unit} ] ` : '';
-        message += `${idx + 1}. *${oi.item.name}* ${unitStr}← *(${oi.quantity})*\n`;
+        const unitStr = oi.unit && oi.unit.trim() ? `${oi.unit.trim()} ` : '';
+        // Format: [الكمية] [الوحدة] [اسم المنتج]
+        message += `${idx + 1}. *${oi.quantity}* ${unitStr}*${oi.item.name}*\n`;
       });
 
       message += `\n━━━━━━━━━━━━━━━━━━━━━\n`;
@@ -542,8 +544,8 @@ export default function CartManager({ onNavigateToOrders }: CartManagerProps) {
                       transition: 'all 0.2s ease',
                     }}
                   >
-                    {/* Index & Product Info */}
-                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem', flex: '1 1 240px', minWidth: 0 }}>
+                    {/* Index & Product Thumbnail & Info */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flex: '1 1 260px', minWidth: 0 }}>
                       <span
                         style={{
                           background: 'rgba(99, 102, 241, 0.15)',
@@ -557,16 +559,61 @@ export default function CartManager({ onNavigateToOrders }: CartManagerProps) {
                           fontSize: '0.78rem',
                           fontWeight: 800,
                           flexShrink: 0,
-                          marginTop: '2px',
                         }}
                       >
                         {toArabicNumeral(index + 1)}
                       </span>
 
+                      {/* Product Thumbnail (Crisp Rounded) */}
+                      <div
+                        style={{
+                          width: '46px',
+                          height: '46px',
+                          borderRadius: 'var(--radius-md)',
+                          overflow: 'hidden',
+                          flexShrink: 0,
+                          background: 'var(--bg-input)',
+                          border: '1px solid var(--border-medium)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
+                        {oi.item.image_url ? (
+                          <img
+                            src={oi.item.image_url}
+                            alt={oi.item.name}
+                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                            loading="lazy"
+                          />
+                        ) : (
+                          <Package size={22} style={{ color: 'var(--text-muted)', opacity: 0.7 }} />
+                        )}
+                      </div>
+
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', minWidth: 0 }}>
-                        <span style={{ fontWeight: 800, fontSize: '0.92rem', color: 'var(--text-primary)', wordBreak: 'break-word' }}>
-                          {oi.item.name}
-                        </span>
+                        {/* Format: [الكمية] [الوحدة] [اسم المنتج] */}
+                        <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.45rem', flexWrap: 'wrap' }}>
+                          <span
+                            style={{
+                              fontSize: '1rem',
+                              fontWeight: 900,
+                              color: 'var(--accent-primary)',
+                              background: 'rgba(99, 102, 241, 0.12)',
+                              padding: '0.05rem 0.45rem',
+                              borderRadius: 'var(--radius-sm)',
+                              lineHeight: 1.2,
+                            }}
+                          >
+                            {oi.quantity}
+                          </span>
+                          <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
+                            {oi.unit}
+                          </span>
+                          <span style={{ fontWeight: 800, fontSize: '0.92rem', color: 'var(--text-primary)', wordBreak: 'break-word' }}>
+                            {oi.item.name}
+                          </span>
+                        </div>
 
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
                           {oi.item.category_name && (

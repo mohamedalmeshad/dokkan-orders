@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { supabase, type Item, type Category } from '@/lib/supabase';
 import { UNIT_OPTIONS } from '@/lib/constants';
+import { uploadProductImage, compressProductImage } from '@/lib/productImageStorage';
 import { useToast } from './Toast';
 import CategoryManager from './CategoryManager';
 import {
@@ -15,6 +16,9 @@ import {
   Check,
   Loader2,
   Layers,
+  Camera,
+  Image as ImageIcon,
+  Sparkles,
 } from 'lucide-react';
 
 export default function ItemManager() {
@@ -30,9 +34,15 @@ export default function ItemManager() {
   const [formUnit, setFormUnit] = useState<string>(UNIT_OPTIONS[0]);
   const [formCategoryId, setFormCategoryId] = useState<string>('');
   const [formCostPrice, setFormCostPrice] = useState<string>('');
+  const [formImageUrl, setFormImageUrl] = useState<string | null>(null);
+  const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
+  const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
+  const [compressingImage, setCompressingImage] = useState(false);
+  const [compressedSizeInfo, setCompressedSizeInfo] = useState<string>('');
   const [isCustomUnit, setIsCustomUnit] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Load items and categories
   useEffect(() => {
@@ -82,6 +92,39 @@ export default function ItemManager() {
     );
   }, [items, searchQuery]);
 
+  // Handle client-side image selection & compression
+  const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setCompressingImage(true);
+    try {
+      const origKb = Math.round(file.size / 1024);
+      // High-efficiency client-side WebP compression (max 400x400 @ 75% quality)
+      const compressed = await compressProductImage(file);
+      const compKb = Math.round(compressed.size / 1024);
+
+      setSelectedImageFile(compressed);
+      setImagePreviewUrl(URL.createObjectURL(compressed));
+      setCompressedSizeInfo(`تم الضغط: ${compKb} ك.ب (توفير ${Math.max(0, origKb - compKb)} ك.ب) ✨`);
+    } catch (err) {
+      console.warn('Image compression failed:', err);
+      showToast('تعذر ضغط الصورة، سيتم استخدامها كما هي', 'info');
+      setSelectedImageFile(file);
+      setImagePreviewUrl(URL.createObjectURL(file));
+    } finally {
+      setCompressingImage(false);
+    }
+  };
+
+  const handleRemoveImage = () => {
+    setSelectedImageFile(null);
+    setImagePreviewUrl(null);
+    setFormImageUrl(null);
+    setCompressedSizeInfo('');
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
   // Open modal for add/edit
   const openAddModal = () => {
     setEditingItem(null);
@@ -89,6 +132,10 @@ export default function ItemManager() {
     setFormUnit(UNIT_OPTIONS[0]);
     setFormCategoryId('');
     setFormCostPrice('');
+    setFormImageUrl(null);
+    setSelectedImageFile(null);
+    setImagePreviewUrl(null);
+    setCompressedSizeInfo('');
     setIsCustomUnit(false);
     setShowModal(true);
   };
@@ -99,6 +146,10 @@ export default function ItemManager() {
     setFormUnit(item.default_unit);
     setFormCategoryId(item.category_id || '');
     setFormCostPrice(item.cost_price != null ? String(item.cost_price) : '');
+    setFormImageUrl(item.image_url || null);
+    setSelectedImageFile(null);
+    setImagePreviewUrl(item.image_url || null);
+    setCompressedSizeInfo(item.image_url ? 'صورة المنتج الحالية' : '');
     const isStandard = (UNIT_OPTIONS as readonly string[]).includes(item.default_unit);
     setIsCustomUnit(!isStandard);
     setShowModal(true);
@@ -111,6 +162,10 @@ export default function ItemManager() {
     setFormUnit(UNIT_OPTIONS[0]);
     setFormCategoryId('');
     setFormCostPrice('');
+    setFormImageUrl(null);
+    setSelectedImageFile(null);
+    setImagePreviewUrl(null);
+    setCompressedSizeInfo('');
     setIsCustomUnit(false);
   };
 
@@ -127,6 +182,13 @@ export default function ItemManager() {
 
     setSaving(true);
     try {
+      // 1. Upload compressed image if user selected a new file
+      let finalImageUrl = formImageUrl;
+      if (selectedImageFile) {
+        showToast('جاري رفع صورة المنتج المضغوطة...', 'info');
+        finalImageUrl = await uploadProductImage(selectedImageFile, editingItem?.id);
+      }
+
       if (editingItem) {
         const { error } = await supabase
           .from('items')
@@ -135,6 +197,7 @@ export default function ItemManager() {
             default_unit: finalUnit,
             category_id: categoryId,
             cost_price: parsedCostPrice,
+            image_url: finalImageUrl,
           })
           .eq('id', editingItem.id);
         if (error) throw error;
@@ -147,6 +210,7 @@ export default function ItemManager() {
             default_unit: finalUnit,
             category_id: categoryId,
             cost_price: parsedCostPrice,
+            image_url: finalImageUrl,
           });
         if (error) throw error;
         showToast('تم إضافة المنتج بنجاح');
@@ -242,6 +306,34 @@ export default function ItemManager() {
         <div className="item-grid">
           {filteredItems.map((item) => (
             <div key={item.id} className="item-row">
+              {/* Product Thumbnail (Crisp Rounded) */}
+              <div
+                style={{
+                  width: '46px',
+                  height: '46px',
+                  borderRadius: 'var(--radius-md)',
+                  overflow: 'hidden',
+                  flexShrink: 0,
+                  background: 'var(--bg-input)',
+                  border: '1px solid var(--border-medium)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxShadow: 'var(--shadow-sm)',
+                }}
+              >
+                {item.image_url ? (
+                  <img
+                    src={item.image_url}
+                    alt={item.name}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    loading="lazy"
+                  />
+                ) : (
+                  <Package size={22} style={{ color: 'var(--text-muted)', opacity: 0.7 }} />
+                )}
+              </div>
+
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', flex: 1, minWidth: 0 }}>
                 <span className="item-name">{item.name}</span>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
@@ -321,6 +413,141 @@ export default function ItemManager() {
               >
                 <X size={18} />
               </button>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                  <Camera size={15} style={{ color: 'var(--accent-primary)' }} />
+                  <span>صورة المنتج (ضغط تلقائي خفيف جداً WebP ⚡)</span>
+                </span>
+                <span style={{ fontSize: '0.68rem', color: '#10b981', fontWeight: 600 }}>
+                  أقل من 40 ك.ب لتوفير المساحة
+                </span>
+              </label>
+
+              <input
+                type="file"
+                ref={fileInputRef}
+                accept="image/*"
+                style={{ display: 'none' }}
+                onChange={handleImageSelect}
+              />
+
+              {imagePreviewUrl ? (
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.85rem',
+                    padding: '0.65rem 0.85rem',
+                    background: 'var(--bg-input)',
+                    border: '1px solid var(--border-medium)',
+                    borderRadius: 'var(--radius-md)',
+                  }}
+                >
+                  <div
+                    style={{
+                      width: '64px',
+                      height: '64px',
+                      borderRadius: 'var(--radius-md)',
+                      overflow: 'hidden',
+                      flexShrink: 0,
+                      border: '1.5px solid var(--accent-primary)',
+                      position: 'relative',
+                      background: 'var(--bg-card)',
+                    }}
+                  >
+                    <img
+                      src={imagePreviewUrl}
+                      alt="معاينة المنتج"
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    />
+                    {compressingImage && (
+                      <div
+                        style={{
+                          position: 'absolute',
+                          inset: 0,
+                          background: 'rgba(0,0,0,0.6)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
+                        <Loader2 size={18} className="animate-spin" style={{ color: '#fff' }} />
+                      </div>
+                    )}
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', flex: 1, minWidth: 0 }}>
+                    {compressedSizeInfo && (
+                      <span
+                        style={{
+                          fontSize: '0.72rem',
+                          color: '#34d399',
+                          fontWeight: 700,
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.25rem',
+                        }}
+                      >
+                        <Sparkles size={12} /> {compressedSizeInfo}
+                      </span>
+                    )}
+                    <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn-sm"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={compressingImage}
+                        style={{ fontSize: '0.72rem', padding: '0.25rem 0.65rem' }}
+                      >
+                        تغيير الصورة
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-sm"
+                        onClick={handleRemoveImage}
+                        disabled={compressingImage}
+                        style={{ fontSize: '0.72rem', padding: '0.25rem 0.65rem', color: 'var(--accent-danger)' }}
+                      >
+                        حذف
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div
+                  onClick={() => fileInputRef.current?.click()}
+                  style={{
+                    border: '1.5px dashed var(--border-medium)',
+                    borderRadius: 'var(--radius-md)',
+                    padding: '0.9rem 1rem',
+                    textAlign: 'center',
+                    cursor: 'pointer',
+                    background: 'rgba(99, 102, 241, 0.03)',
+                    transition: 'all 0.2s ease',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: '0.35rem',
+                  }}
+                >
+                  {compressingImage ? (
+                    <Loader2 size={24} className="animate-spin" style={{ color: 'var(--accent-primary)' }} />
+                  ) : (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--accent-primary)' }}>
+                      <Camera size={18} />
+                      <span style={{ fontSize: '0.82rem', fontWeight: 700 }}>
+                        اضغط لالتقاط أو اختيار صورة للمنتج
+                      </span>
+                    </div>
+                  )}
+                  <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                    يتم تحويلها لـ WebP مضغوطة أوتوماتيكياً (400×400 بكسل) لتوفير الباقة المجانية
+                  </span>
+                </div>
+              )}
             </div>
 
             <div className="form-group">

@@ -21,7 +21,6 @@ import {
   type PublicChecklistOrder,
 } from '@/lib/checklist';
 import { formatArabicDate } from '@/lib/constants';
-import styles from './checklist.module.css';
 
 type FilterTab = 'all' | 'pending' | 'packed' | 'unavailable';
 
@@ -186,30 +185,28 @@ export default function ChecklistClient() {
 
   if (loading) {
     return (
-      <div dir="rtl" className={styles.statePage}>
-        <Loader2 size={40} className={`${styles.loadingIcon} ${styles.spin}`} />
-        <p className={styles.loadingText}>جاري تحميل قائمة تجهيز الطلبية...</p>
+      <div dir="rtl" className="cl-state-page">
+        <Loader2 size={40} className="cl-loading-icon cl-spin" />
+        <p className="cl-loading-text">جاري تحميل قائمة تجهيز الطلبية...</p>
       </div>
     );
   }
 
   if (errorMsg || !order) {
     return (
-      <div dir="rtl" className={styles.statePage}>
-        <div className={styles.stateCard}>
-          <div className={styles.errorIconWrap}>
+      <div dir="rtl" className="cl-state-page">
+        <div className="cl-state-card">
+          <div className="cl-error-icon-wrap">
             <XCircle size={32} />
           </div>
-          <h1 className={styles.errorTitle}>
-            {errorMsg || 'القائمة غير متاحة'}
-          </h1>
-          <p className={styles.errorDesc}>
+          <h1 className="cl-error-title">{errorMsg || 'القائمة غير متاحة'}</h1>
+          <p className="cl-error-desc">
             تأكد من فتح الرابط الكامل المرسل عبر واتساب أو اطلب رابطاً محدثاً من التاجر.
           </p>
           <button
             type="button"
             onClick={() => loadOrder(false)}
-            className={styles.retryBtn}
+            className="cl-retry-btn"
           >
             <RefreshCw size={16} />
             <span>إعادة المحاولة</span>
@@ -226,22 +223,19 @@ export default function ChecklistClient() {
     stats.total > 0 ? Math.round((stats.unavailable / stats.total) * 100) : 0;
 
   return (
-    <div dir="rtl" className={styles.page}>
+    <div dir="rtl" className="cl-page">
       {/* Sticky Top Header */}
-      <header className={styles.header}>
-        <div className={styles.headerInner}>
-          {/* Store Row (no "مباشر" badge) */}
-          <div className={styles.headerTop}>
-            <div className={styles.storeInfo}>
-              <div className={styles.storeIcon}>
+      <header className="cl-header">
+        <div className="cl-header-inner">
+          <div className="cl-header-top">
+            <div className="cl-store-info">
+              <div className="cl-store-icon">
                 <Store size={22} />
               </div>
-              <div className={styles.storeMeta}>
-                <h1 className={styles.storeTitle}>
-                  طلبية: {order.merchant_name}
-                </h1>
-                <div className={styles.storeDate}>
-                  <Calendar size={14} className={styles.dateIcon} />
+              <div className="cl-store-meta">
+                <h1 className="cl-store-title">طلبية: {order.merchant_name}</h1>
+                <div className="cl-store-date">
+                  <Calendar size={14} className="cl-date-icon" />
                   <span>{dateText}</span>
                 </div>
               </div>
@@ -251,44 +245,44 @@ export default function ChecklistClient() {
               type="button"
               onClick={() => loadOrder(true)}
               aria-label="تحديث القائمة"
-              className={styles.refreshBtn}
+              className="cl-refresh-btn"
             >
               <RefreshCw
                 size={18}
-                className={refreshing ? styles.spin : undefined}
+                className={refreshing ? 'cl-spin' : undefined}
               />
             </button>
           </div>
 
           {/* Progress Bar */}
-          <div className={styles.progressCard}>
-            <div className={styles.progressTop}>
-              <span className={styles.progressLabel}>
+          <div className="cl-progress-card">
+            <div className="cl-progress-top">
+              <span className="cl-progress-label">
                 تم تجهيز {stats.packed} من {stats.total} صنف
               </span>
-              <div className={styles.progressRight}>
+              <div className="cl-progress-right">
                 {stats.unavailable > 0 ? (
-                  <span className={styles.unavailablePill}>
+                  <span className="cl-unavailable-pill">
                     ❌ {stats.unavailable} ناقص
                   </span>
                 ) : null}
-                <span className={styles.progressPct}>{stats.pct}%</span>
+                <span className="cl-progress-pct">{stats.pct}%</span>
               </div>
             </div>
-            <div className={styles.progressTrack}>
+            <div className="cl-progress-track">
               <div
-                className={styles.progressPacked}
+                className="cl-progress-packed"
                 style={{ width: `${packedPct}%` }}
               />
               <div
-                className={styles.progressUnavailable}
+                className="cl-progress-unavailable"
                 style={{ width: `${unavailablePct}%` }}
               />
             </div>
           </div>
 
           {/* Quick Filter Pills */}
-          <div className={styles.filtersRow}>
+          <div className="cl-filters-row">
             {(
               [
                 { id: 'all', label: `الكل (${stats.total})` },
@@ -303,8 +297,8 @@ export default function ChecklistClient() {
                   key={tab.id}
                   type="button"
                   onClick={() => setFilter(tab.id)}
-                  className={`${styles.filterBtn} ${
-                    active ? styles.filterBtnActive : ''
+                  className={`cl-filter-btn ${
+                    active ? 'cl-filter-btn-active' : ''
                   }`}
                 >
                   {tab.label}
@@ -314,27 +308,27 @@ export default function ChecklistClient() {
           </div>
 
           {actionError ? (
-            <div className={styles.errorBanner}>{actionError}</div>
+            <div className="cl-error-banner">{actionError}</div>
           ) : null}
         </div>
       </header>
 
       {/* Main Content */}
-      <main className={styles.main}>
+      <main className="cl-main">
         {/* Notes Banner */}
         {order.notes ? (
-          <div className={styles.notesBanner}>
-            <FileText size={18} className={styles.notesIcon} />
+          <div className="cl-notes-banner">
+            <FileText size={18} className="cl-notes-icon" />
             <div>
-              <div className={styles.notesTitle}>ملاحظات الطلبية</div>
-              <p className={styles.notesText}>{order.notes}</p>
+              <div className="cl-notes-title">ملاحظات الطلبية</div>
+              <p className="cl-notes-text">{order.notes}</p>
             </div>
           </div>
         ) : null}
 
         {/* Locked Banner */}
         {isLocked ? (
-          <div className={styles.lockedBanner}>
+          <div className="cl-locked-banner">
             <Lock size={18} />
             <span>تم إغلاق هذه القائمة ({order.status}) — للعرض فقط</span>
           </div>
@@ -342,13 +336,13 @@ export default function ChecklistClient() {
 
         {/* Completion Banner */}
         {stats.total > 0 && stats.pending === 0 ? (
-          <div className={styles.doneBanner}>
-            <div className={styles.doneIconWrap}>
+          <div className="cl-done-banner">
+            <div className="cl-done-icon-wrap">
               <PackageCheck size={24} />
             </div>
             <div>
-              <div className={styles.doneTitle}>اكتملت مراجعة جميع الأصناف!</div>
-              <div className={styles.doneSub}>
+              <div className="cl-done-title">اكتملت مراجعة جميع الأصناف!</div>
+              <div className="cl-done-sub">
                 تم تجهيز {stats.packed} صنف
                 {stats.unavailable > 0 ? ` • ${stats.unavailable} أصناف ناقصة` : ''}
               </div>
@@ -357,7 +351,7 @@ export default function ChecklistClient() {
         ) : null}
 
         {visibleItems.length === 0 ? (
-          <div className={styles.emptyCard}>لا توجد أصناف في هذا القسم حالياً</div>
+          <div className="cl-empty-card">لا توجد أصناف في هذا القسم حالياً</div>
         ) : (
           visibleItems.map(({ item, key, status }) => {
             const isPacked = status === 'packed';
@@ -366,38 +360,38 @@ export default function ChecklistClient() {
             const qtyLabel = formatArabicQuantity(item.quantity);
 
             const cardClass = isPacked
-              ? `${styles.itemCard} ${styles.itemCardPacked}`
+              ? 'cl-item-card cl-item-card-packed'
               : isUnavailable
-              ? `${styles.itemCard} ${styles.itemCardUnavailable}`
-              : styles.itemCard;
+              ? 'cl-item-card cl-item-card-unavailable'
+              : 'cl-item-card';
 
             const qtyClass = isFrac
-              ? `${styles.qtyBadge} ${styles.qtyBadgeFrac}`
+              ? 'cl-qty-badge cl-qty-badge-frac'
               : isPacked
-              ? `${styles.qtyBadge} ${styles.qtyBadgePacked}`
-              : styles.qtyBadge;
+              ? 'cl-qty-badge cl-qty-badge-packed'
+              : 'cl-qty-badge';
 
             const nameClass = isPacked
-              ? `${styles.itemName} ${styles.itemNamePacked}`
+              ? 'cl-item-name cl-item-name-packed'
               : isUnavailable
-              ? `${styles.itemName} ${styles.itemNameUnavailable}`
-              : styles.itemName;
+              ? 'cl-item-name cl-item-name-unavailable'
+              : 'cl-item-name';
 
             return (
               <div key={key} className={cardClass}>
                 {/* Quantity Badge (Right) + Unit & Item Name */}
-                <div className={styles.itemTop}>
+                <div className="cl-item-top">
                   <div className={qtyClass}>
-                    <div className={styles.qtyNumber}>{qtyLabel}</div>
+                    <div className="cl-qty-number">{qtyLabel}</div>
                     {isFrac ? (
-                      <div className={styles.qtyDecimal}>({item.quantity})</div>
+                      <div className="cl-qty-decimal">({item.quantity})</div>
                     ) : null}
                   </div>
 
-                  <div className={styles.itemBody}>
+                  <div className="cl-item-body">
                     {item.unit ? (
-                      <div className={styles.itemMetaRow}>
-                        <span className={styles.unitPill}>{item.unit}</span>
+                      <div className="cl-item-meta-row">
+                        <span className="cl-unit-pill">{item.unit}</span>
                       </div>
                     ) : null}
                     <h2 className={nameClass}>{item.item_name}</h2>
@@ -405,13 +399,13 @@ export default function ChecklistClient() {
                 </div>
 
                 {/* Large Thumb-Friendly Action Buttons */}
-                <div className={styles.actionsGrid}>
+                <div className="cl-actions-grid">
                   <button
                     type="button"
                     disabled={isLocked}
                     onClick={() => handleToggleItem(key, 'packed')}
-                    className={`${styles.actionBtn} ${
-                      isPacked ? styles.btnPackedActive : styles.btnPackedIdle
+                    className={`cl-action-btn ${
+                      isPacked ? 'cl-btn-packed-active' : 'cl-btn-packed-idle'
                     }`}
                   >
                     <CheckCircle2 size={20} />
@@ -422,10 +416,10 @@ export default function ChecklistClient() {
                     type="button"
                     disabled={isLocked}
                     onClick={() => handleToggleItem(key, 'unavailable')}
-                    className={`${styles.actionBtn} ${
+                    className={`cl-action-btn ${
                       isUnavailable
-                        ? styles.btnUnavailActive
-                        : styles.btnUnavailIdle
+                        ? 'cl-btn-unavail-active'
+                        : 'cl-btn-unavail-idle'
                     }`}
                   >
                     <XCircle size={20} />

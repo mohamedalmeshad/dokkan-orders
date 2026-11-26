@@ -1,7 +1,6 @@
 import React, { Suspense } from 'react';
 import type { Metadata } from 'next';
 import ChecklistClient from './ChecklistClient';
-import styles from './checklist.module.css';
 
 export const metadata: Metadata = {
   title: 'قائمة تجهيز الطلبية | دُكّان',
@@ -10,8 +9,8 @@ export const metadata: Metadata = {
 
 function ChecklistFallback() {
   return (
-    <div dir="rtl" className={styles.statePage}>
-      <p className={styles.loadingText}>جاري فتح قائمة الطلبية...</p>
+    <div dir="rtl" className="cl-state-page">
+      <p className="cl-loading-text">جاري فتح قائمة الطلبية...</p>
     </div>
   );
 }

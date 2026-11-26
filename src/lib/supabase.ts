@@ -44,6 +44,9 @@ export type OrderItem = {
 
 export type OrderStatus = 'تم الإرسال' | 'تم الاستلام' | 'ملغاة';
 
+export type SupplierCheckStatus = 'pending' | 'packed' | 'unavailable';
+export type SupplierChecksMap = Record<string, SupplierCheckStatus>;
+
 export type OrderRecord = {
   id: string;
   order_number: number;
@@ -59,6 +62,9 @@ export type OrderRecord = {
   }[];
   total_items: number;
   total_quantity: number;
+  notes?: string | null;
+  share_token?: string | null;
+  supplier_checks?: SupplierChecksMap | null;
   invoice_url?: string | null;
   invoice_urls?: string[] | null;
   created_at: string;

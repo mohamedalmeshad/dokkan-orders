@@ -21,6 +21,7 @@ import {
   type PublicChecklistOrder,
 } from '@/lib/checklist';
 import { formatArabicDate } from '@/lib/constants';
+import styles from './checklist.module.css';
 
 type FilterTab = 'all' | 'pending' | 'packed' | 'unavailable';
 
@@ -185,40 +186,33 @@ export default function ChecklistClient() {
 
   if (loading) {
     return (
-      <div
-        dir="rtl"
-        className="min-h-screen w-full bg-[#F5F7F6] text-[#0F172A] flex flex-col items-center justify-center p-6 gap-3"
-      >
-        <Loader2 className="w-10 h-10 text-[#0F766E] animate-spin" />
-        <p className="text-base font-bold text-[#475569]">
-          جاري تحميل قائمة تجهيز الطلبية...
-        </p>
+      <div dir="rtl" className={styles.statePage}>
+        <Loader2 size={40} className={`${styles.loadingIcon} ${styles.spin}`} />
+        <p className={styles.loadingText}>جاري تحميل قائمة تجهيز الطلبية...</p>
       </div>
     );
   }
 
   if (errorMsg || !order) {
     return (
-      <div
-        dir="rtl"
-        className="min-h-screen w-full bg-[#F5F7F6] text-[#0F172A] flex flex-col items-center justify-center p-6 text-center"
-      >
-        <div className="max-w-md w-full bg-white border border-[#E2E8E5] rounded-2xl p-6 shadow-sm space-y-4">
-          <div className="w-14 h-14 mx-auto rounded-full bg-[#FEE2E2] text-[#DC2626] flex items-center justify-center">
-            <XCircle className="w-8 h-8" />
+      <div dir="rtl" className={styles.statePage}>
+        <div className={styles.stateCard}>
+          <div className={styles.errorIconWrap}>
+            <XCircle size={32} />
           </div>
-          <h1 className="text-xl font-extrabold text-[#0F172A]">
+          <h1 className={styles.errorTitle}>
             {errorMsg || 'القائمة غير متاحة'}
           </h1>
-          <p className="text-sm font-medium text-[#475569]">
+          <p className={styles.errorDesc}>
             تأكد من فتح الرابط الكامل المرسل عبر واتساب أو اطلب رابطاً محدثاً من التاجر.
           </p>
           <button
+            type="button"
             onClick={() => loadOrder(false)}
-            className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-[#0F766E] text-white font-bold text-sm hover:bg-[#115E59] transition cursor-pointer"
+            className={styles.retryBtn}
           >
-            <RefreshCw className="w-4 h-4" />
-            إعادة المحاولة
+            <RefreshCw size={16} />
+            <span>إعادة المحاولة</span>
           </button>
         </div>
       </div>
@@ -232,93 +226,69 @@ export default function ChecklistClient() {
     stats.total > 0 ? Math.round((stats.unavailable / stats.total) * 100) : 0;
 
   return (
-    <div dir="rtl" className="min-h-screen w-full bg-[#F5F7F6] text-[#0F172A] pb-10">
+    <div dir="rtl" className={styles.page}>
       {/* Sticky Top Header */}
-      <header className="sticky top-0 z-30 bg-white/95 backdrop-blur border-b border-[#E2E8E5] shadow-xs">
-        <div className="max-w-xl mx-auto px-3.5 pt-3 pb-3 space-y-2.5">
-          {/* Row 1: Store & Live Badge */}
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div className="w-10 h-10 rounded-xl bg-[#0F766E] text-white flex items-center justify-center shrink-0">
-                <Store className="w-5 h-5" />
+      <header className={styles.header}>
+        <div className={styles.headerInner}>
+          {/* Store Row (no "مباشر" badge) */}
+          <div className={styles.headerTop}>
+            <div className={styles.storeInfo}>
+              <div className={styles.storeIcon}>
+                <Store size={22} />
               </div>
-              <div className="min-w-0">
-                <h1 className="text-base sm:text-lg font-extrabold text-[#0F172A] truncate">
+              <div className={styles.storeMeta}>
+                <h1 className={styles.storeTitle}>
                   طلبية: {order.merchant_name}
                 </h1>
-                <div className="flex items-center gap-1.5 text-xs font-semibold text-[#475569]">
-                  <Calendar className="w-3.5 h-3.5 text-[#0F766E] shrink-0" />
-                  <span className="truncate">{dateText}</span>
+                <div className={styles.storeDate}>
+                  <Calendar size={14} className={styles.dateIcon} />
+                  <span>{dateText}</span>
                 </div>
               </div>
             </div>
 
-            <div className="flex items-center gap-1.5 shrink-0">
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#DCFCE7] border border-[#86EFAC] text-[#15803D] text-xs font-extrabold">
-                <span className="w-2 h-2 rounded-full bg-[#16A34A] animate-pulse" />
-                مباشر
-              </span>
-              <button
-                onClick={() => loadOrder(true)}
-                aria-label="تحديث القائمة"
-                className="w-9 h-9 rounded-xl bg-[#EEF2F0] border border-[#CBD5D0] text-[#0F766E] flex items-center justify-center active:scale-95 transition cursor-pointer"
-              >
-                <RefreshCw
-                  className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`}
-                />
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={() => loadOrder(true)}
+              aria-label="تحديث القائمة"
+              className={styles.refreshBtn}
+            >
+              <RefreshCw
+                size={18}
+                className={refreshing ? styles.spin : undefined}
+              />
+            </button>
           </div>
 
-          {/* Notes Banner */}
-          {order.notes ? (
-            <div className="flex items-start gap-2 rounded-xl bg-[#FEF3C7] border-2 border-[#F59E0B] px-3 py-2 text-[#92400E]">
-              <FileText className="w-4 h-4 mt-0.5 shrink-0" />
-              <p className="text-xs sm:text-sm font-bold leading-snug">
-                ملاحظات: {order.notes}
-              </p>
-            </div>
-          ) : null}
-
-          {/* Locked Banner */}
-          {isLocked ? (
-            <div className="flex items-center gap-2 rounded-xl bg-[#FEE2E2] border border-[#FCA5A5] px-3 py-2 text-[#DC2626]">
-              <Lock className="w-4 h-4 shrink-0" />
-              <span className="text-xs sm:text-sm font-extrabold">
-                تم إغلاق هذه القائمة ({order.status}) — للعرض فقط
-              </span>
-            </div>
-          ) : null}
-
           {/* Progress Bar */}
-          <div className="bg-[#F8FAFC] border border-[#E2E8E5] rounded-xl p-2.5 space-y-1.5">
-            <div className="flex items-center justify-between gap-2 text-xs sm:text-sm font-extrabold">
-              <span className="text-[#0F766E]">
+          <div className={styles.progressCard}>
+            <div className={styles.progressTop}>
+              <span className={styles.progressLabel}>
                 تم تجهيز {stats.packed} من {stats.total} صنف
               </span>
-              <div className="flex items-center gap-2">
+              <div className={styles.progressRight}>
                 {stats.unavailable > 0 ? (
-                  <span className="px-2 py-0.5 rounded-full bg-[#FEE2E2] text-[#DC2626] text-xs font-extrabold">
+                  <span className={styles.unavailablePill}>
                     ❌ {stats.unavailable} ناقص
                   </span>
                 ) : null}
-                <span className="text-[#475569]">{stats.pct}%</span>
+                <span className={styles.progressPct}>{stats.pct}%</span>
               </div>
             </div>
-            <div className="w-full h-2.5 rounded-full bg-[#E2E8E5] overflow-hidden flex">
+            <div className={styles.progressTrack}>
               <div
-                className="h-full bg-[#16A34A] transition-all duration-300"
+                className={styles.progressPacked}
                 style={{ width: `${packedPct}%` }}
               />
               <div
-                className="h-full bg-[#DC2626] transition-all duration-300"
+                className={styles.progressUnavailable}
                 style={{ width: `${unavailablePct}%` }}
               />
             </div>
           </div>
 
           {/* Quick Filter Pills */}
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5">
+          <div className={styles.filtersRow}>
             {(
               [
                 { id: 'all', label: `الكل (${stats.total})` },
@@ -331,11 +301,10 @@ export default function ChecklistClient() {
               return (
                 <button
                   key={tab.id}
+                  type="button"
                   onClick={() => setFilter(tab.id)}
-                  className={`px-3 py-1.5 rounded-full text-xs font-extrabold whitespace-nowrap border transition cursor-pointer ${
-                    active
-                      ? 'bg-[#0F766E] text-white border-[#0F766E]'
-                      : 'bg-white text-[#475569] border-[#CBD5D0]'
+                  className={`${styles.filterBtn} ${
+                    active ? styles.filterBtnActive : ''
                   }`}
                 >
                   {tab.label}
@@ -345,23 +314,41 @@ export default function ChecklistClient() {
           </div>
 
           {actionError ? (
-            <div className="rounded-lg bg-[#FEE2E2] border border-[#FECACA] px-3 py-1.5 text-xs font-bold text-[#DC2626]">
-              {actionError}
-            </div>
+            <div className={styles.errorBanner}>{actionError}</div>
           ) : null}
         </div>
       </header>
 
-      {/* Main Checklist */}
-      <main className="max-w-xl mx-auto px-3.5 pt-3.5 space-y-3">
-        {stats.total > 0 && stats.pending === 0 ? (
-          <div className="rounded-2xl bg-[#ECFDF5] border-2 border-[#10B981] p-4 flex items-center gap-3 text-[#065F46]">
-            <PackageCheck className="w-7 h-7 shrink-0 text-[#059669]" />
+      {/* Main Content */}
+      <main className={styles.main}>
+        {/* Notes Banner */}
+        {order.notes ? (
+          <div className={styles.notesBanner}>
+            <FileText size={18} className={styles.notesIcon} />
             <div>
-              <div className="font-extrabold text-sm sm:text-base">
-                اكتملت مراجعة جميع الأصناف!
-              </div>
-              <div className="text-xs font-semibold opacity-90">
+              <div className={styles.notesTitle}>ملاحظات الطلبية</div>
+              <p className={styles.notesText}>{order.notes}</p>
+            </div>
+          </div>
+        ) : null}
+
+        {/* Locked Banner */}
+        {isLocked ? (
+          <div className={styles.lockedBanner}>
+            <Lock size={18} />
+            <span>تم إغلاق هذه القائمة ({order.status}) — للعرض فقط</span>
+          </div>
+        ) : null}
+
+        {/* Completion Banner */}
+        {stats.total > 0 && stats.pending === 0 ? (
+          <div className={styles.doneBanner}>
+            <div className={styles.doneIconWrap}>
+              <PackageCheck size={24} />
+            </div>
+            <div>
+              <div className={styles.doneTitle}>اكتملت مراجعة جميع الأصناف!</div>
+              <div className={styles.doneSub}>
                 تم تجهيز {stats.packed} صنف
                 {stats.unavailable > 0 ? ` • ${stats.unavailable} أصناف ناقصة` : ''}
               </div>
@@ -370,9 +357,7 @@ export default function ChecklistClient() {
         ) : null}
 
         {visibleItems.length === 0 ? (
-          <div className="bg-white border border-[#E2E8E5] rounded-2xl p-8 text-center text-sm font-bold text-[#64748B]">
-            لا توجد أصناف في هذا القسم حالياً
-          </div>
+          <div className={styles.emptyCard}>لا توجد أصناف في هذا القسم حالياً</div>
         ) : (
           visibleItems.map(({ item, key, status }) => {
             const isPacked = status === 'packed';
@@ -381,72 +366,55 @@ export default function ChecklistClient() {
             const qtyLabel = formatArabicQuantity(item.quantity);
 
             const cardClass = isPacked
-              ? 'bg-[#ECFDF5] border-[#10B981] opacity-80'
+              ? `${styles.itemCard} ${styles.itemCardPacked}`
               : isUnavailable
-              ? 'bg-[#FEF2F2] border-[#EF4444]'
-              : 'bg-white border-[#CBD5E1] shadow-xs';
+              ? `${styles.itemCard} ${styles.itemCardUnavailable}`
+              : styles.itemCard;
+
+            const qtyClass = isFrac
+              ? `${styles.qtyBadge} ${styles.qtyBadgeFrac}`
+              : isPacked
+              ? `${styles.qtyBadge} ${styles.qtyBadgePacked}`
+              : styles.qtyBadge;
+
+            const nameClass = isPacked
+              ? `${styles.itemName} ${styles.itemNamePacked}`
+              : isUnavailable
+              ? `${styles.itemName} ${styles.itemNameUnavailable}`
+              : styles.itemName;
 
             return (
-              <div
-                key={key}
-                className={`rounded-2xl border-2 p-3.5 transition-all space-y-3 ${cardClass}`}
-              >
+              <div key={key} className={cardClass}>
                 {/* Quantity Badge (Right) + Unit & Item Name */}
-                <div className="flex items-center gap-3">
-                  <div
-                    className={`min-w-[82px] px-3 py-2 rounded-xl border-2 text-center shrink-0 ${
-                      isFrac
-                        ? 'bg-[#FEF3C7] border-[#D97706] text-[#92400E]'
-                        : 'bg-[#CCFBF1] border-[#0F766E] text-[#0B4F4A]'
-                    }`}
-                  >
-                    <div className="text-[25px] font-black leading-none">
-                      {qtyLabel}
-                    </div>
+                <div className={styles.itemTop}>
+                  <div className={qtyClass}>
+                    <div className={styles.qtyNumber}>{qtyLabel}</div>
                     {isFrac ? (
-                      <div className="text-[12px] font-extrabold mt-1 opacity-90">
-                        ({item.quantity})
-                      </div>
+                      <div className={styles.qtyDecimal}>({item.quantity})</div>
                     ) : null}
                   </div>
 
-                  <div className="flex-1 min-w-0 space-y-1">
+                  <div className={styles.itemBody}>
                     {item.unit ? (
-                      <span className="inline-block px-2.5 py-0.5 rounded-md bg-[#E2E8F0] text-[#1E293B] text-xs font-extrabold">
-                        {item.unit}
-                      </span>
+                      <div className={styles.itemMetaRow}>
+                        <span className={styles.unitPill}>{item.unit}</span>
+                      </div>
                     ) : null}
-                    <h2
-                      className={`text-[18px] font-extrabold leading-snug wrap-break-word ${
-                        isPacked
-                          ? 'line-through text-[#065F46]'
-                          : isUnavailable
-                          ? 'text-[#991B1B]'
-                          : 'text-[#0F172A]'
-                      }`}
-                    >
-                      {item.item_name}
-                    </h2>
+                    <h2 className={nameClass}>{item.item_name}</h2>
                   </div>
                 </div>
 
                 {/* Large Thumb-Friendly Action Buttons */}
-                <div className="flex items-center gap-2.5">
+                <div className={styles.actionsGrid}>
                   <button
                     type="button"
                     disabled={isLocked}
                     onClick={() => handleToggleItem(key, 'packed')}
-                    className={`flex-1 min-h-[48px] rounded-xl border-2 font-extrabold text-sm flex items-center justify-center gap-2 transition active:scale-[0.98] ${
-                      isLocked
-                        ? 'opacity-50 cursor-not-allowed'
-                        : 'cursor-pointer'
-                    } ${
-                      isPacked
-                        ? 'bg-[#16A34A] border-[#15803D] text-white shadow-xs'
-                        : 'bg-[#F0FDF4] border-[#86EFAC] text-[#15803D]'
+                    className={`${styles.actionBtn} ${
+                      isPacked ? styles.btnPackedActive : styles.btnPackedIdle
                     }`}
                   >
-                    <CheckCircle2 className="w-5 h-5 shrink-0" />
+                    <CheckCircle2 size={20} />
                     <span>تم التجهيز</span>
                   </button>
 
@@ -454,17 +422,13 @@ export default function ChecklistClient() {
                     type="button"
                     disabled={isLocked}
                     onClick={() => handleToggleItem(key, 'unavailable')}
-                    className={`flex-1 min-h-[48px] rounded-xl border-2 font-extrabold text-sm flex items-center justify-center gap-2 transition active:scale-[0.98] ${
-                      isLocked
-                        ? 'opacity-50 cursor-not-allowed'
-                        : 'cursor-pointer'
-                    } ${
+                    className={`${styles.actionBtn} ${
                       isUnavailable
-                        ? 'bg-[#DC2626] border-[#B91C1C] text-white shadow-xs'
-                        : 'bg-[#FEF2F2] border-[#FECACA] text-[#DC2626]'
+                        ? styles.btnUnavailActive
+                        : styles.btnUnavailIdle
                     }`}
                   >
-                    <XCircle className="w-5 h-5 shrink-0" />
+                    <XCircle size={20} />
                     <span>ناقص</span>
                   </button>
                 </div>
